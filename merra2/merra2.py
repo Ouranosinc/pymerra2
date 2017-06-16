@@ -2,20 +2,19 @@ import os
 import glob
 import datetime
 from calendar import monthrange
+import tempfile
+import shutil
 
 import numpy as np
 import numpy.ma as ma
 import netCDF4
 
+from merra2_variables import subdaily_vars
+
 # Aliases for default fill values
 defi2 = netCDF4.default_fillvals['i2']
 defi4 = netCDF4.default_fillvals['i4']
 deff4 = netCDF4.default_fillvals['f4']
-
-subdaily_vars = {'uas': {'esdt_dir': 'M2I1NXASM.5.12.4',
-                         'collection': 'inst1_2d_asm_Nx',
-                         'merra_name': 'V10M',
-                         'standard_name': 'northward_wind'}}
 
 
 class NetCDFError(Exception):
@@ -69,8 +68,24 @@ def _datetimes_to_time_vectors(datetimes):
 def subdaily_download(dataset_esdt, merra2_collection, initial_year,
                       final_year, initial_month=1, final_month=12,
                       initial_day=1, final_day=None, output_directory=None):
-    # This will not work for constant fields
-    # This will not work for monthly data
+    """MERRA2 subdaily download.
+
+    Parameters
+    ----------
+    dataset_esdt : string
+        See the Bosilovich paper for details.
+    merra2_collection : string
+        See the Bosilovich paper for details.
+    initial_year : int
+    final_year : int
+    initial_month : int
+    final_month : int
+    initial_day : int
+    final_day : int
+    output_directory : string
+
+    """
+
     if output_directory is None:
         add_output_dir = ''
     else:
@@ -116,9 +131,32 @@ def subdaily_download(dataset_esdt, merra2_collection, initial_year,
 
 
 def subdaily_netcdf(path_data, output_file, var_name, initial_year,
-                    final_year):
-    # Currently does not deal with the level aspect (and therefore 3d fields)
-    search_str = "*{0}*.nc4".format(subdaily_vars[var_name]['collection'])
+                    final_year, merra2_var_dict=None, verbose=False):
+    """MERRA2 subdaily NetCDF.
+
+    Parameters
+    ----------
+    path_data : str
+    output_file : str
+    var_name : str
+    initial_year : int
+    final_year : int
+    merra2_var_dict : dict
+        Dictionary containing the following keys:
+        esdt_dir, collection, merra_name, standard_name,
+        see the Bosilovich paper for details.
+    verbose : bool
+
+    Notes
+    -----
+    Currently does not deal with the level aspect (and therefore 3d fields)
+
+    """
+
+    if not merra2_var_dict:
+        merra2_var_dict = subdaily_vars[var_name]
+
+    search_str = "*{0}*.nc4".format(merra2_var_dict['collection'])
     nc_files = glob.glob(os.path.join(path_data, search_str))
     nc_files.sort()
 
@@ -132,7 +170,7 @@ def subdaily_netcdf(path_data, output_file, var_name, initial_year,
         if (yyyy >= initial_year) and (yyyy <= final_year):
             relevant_files.append(nc_file)
             nc = netCDF4.Dataset(nc_file, 'r')
-            ncvar = nc.variables[subdaily_vars[var_name]['merra_name']]
+            ncvar = nc.variables[merra2_var_dict['merra_name']]
             nmb += ncvar.size*4/(1024.*1024.)
             if nmb > 500:
                 divided_files.append([nc_file])
@@ -145,7 +183,7 @@ def subdaily_netcdf(path_data, output_file, var_name, initial_year,
             nc.close()
 
     nc_reference = netCDF4.Dataset(relevant_files[0], 'r')
-    var_ref = nc_reference.variables[subdaily_vars[var_name]['merra_name']]
+    var_ref = nc_reference.variables[merra2_var_dict['merra_name']]
 
     # 2.1 Filename
     #     NetCDF files should have the file name extension ".nc".
@@ -197,7 +235,7 @@ def subdaily_netcdf(path_data, output_file, var_name, initial_year,
     # 4.4.1. Calendar
     time.calendar = 'gregorian'
 
-    time_vectors = nc1.createVariable('time_vectors', 'f4', ('time', 'ts'),
+    time_vectors = nc1.createVariable('time_vectors', 'i2', ('time', 'ts'),
                                       zlib=True)
 
     # 4.3. Vertical (Height or Depth) Coordinate
@@ -225,14 +263,14 @@ def subdaily_netcdf(path_data, output_file, var_name, initial_year,
     lon[:] = nc_reference.variables['lon'][:]
 
     var1 = nc1.createVariable(var_name, 'f4', ('time', 'lat', 'lon'),
-                              zlib=True, chunksizes=(720, 30, 30),
+                              zlib=True, chunksizes=(360, 30, 30),
                               fill_value=deff4)
     # 3.1. Units
     var1.units = var_ref.units
     # 3.2. Long Name
     var1.long_name = var_ref.long_name
     # 3.3. Standard Name
-    var1.standard_name = subdaily_vars[var_name]['standard_name']
+    var1.standard_name = merra2_var_dict['standard_name']
 
     nc_reference.close()
 
@@ -243,7 +281,8 @@ def subdaily_netcdf(path_data, output_file, var_name, initial_year,
         tmp_time = ma.masked_all([nt_division[i]])
         ttmp = 0
         for nc_file in division:
-            print(nc_file)
+            if verbose:
+                print(nc_file)
             nc = netCDF4.Dataset(nc_file, 'r')
             ncvar = nc.variables[subdaily_vars[var_name]['merra_name']]
             nctime = nc.variables['time']
@@ -262,3 +301,61 @@ def subdaily_netcdf(path_data, output_file, var_name, initial_year,
     time_vectors[:,:] = _datetimes_to_time_vectors(datetimes)
 
     nc1.close()
+
+
+def subdaily_download_and_convert(var_name, initial_year, final_year,
+                                  initial_month=1, final_month=12,
+                                  initial_day=1, final_day=None,
+                                  merra2_var_dict=None, output_dir=None,
+                                  delete_temp_dir=True, verbose=True):
+    """MERRA2 subdaily download and conversion.
+
+    Parameters
+    ----------
+    var_name : string
+        Variable short name, must be defined in merra2_variables.py
+        if merra2_var_dict is not provided.
+    initial_year : int
+    final_year : int
+    initial_month : int
+    final_month : int
+    initial_day : int
+    final_day : int
+    merra2_var_dict : dict
+        Dictionary containing the following keys:
+        esdt_dir, collection, merra_name, standard_name,
+        see the Bosilovich paper for details.
+    output_dir : string
+    delete_temp_dir : bool
+    verbose : bool
+
+    """
+
+    if not merra2_var_dict:
+        merra2_var_dict = subdaily_vars[var_name]
+    if output_dir is None:
+        output_dir = os.getcwd()
+    temp_dir_download = tempfile.mkdtemp(dir=output_dir)
+    # Download subdaily files
+    subdaily_download(
+        merra2_var_dict['esdt_dir'], merra2_var_dict['collection'],
+        initial_year, final_year, initial_month=initial_month,
+        final_month=final_month, initial_day=initial_day, final_day=final_day,
+        output_directory=temp_dir_download)
+    # Name the output file
+    if (initial_year == final_year) and (initial_month == final_month):
+        file_name_str = "{0}_1hr_merra2_reanalysis_{1}{2}.nc"
+        out_file_name = file_name_str.format(
+            var_name, str(initial_year), str(initial_month).zfill(2))
+    else:
+        file_name_str = "{0}_1hr_merra2_reanalysis_{1}{2}-{3}{4}.nc"
+        out_file_name = file_name_str.format(
+            var_name, str(initial_year), str(initial_month).zfill(2),
+            str(final_year), str(final_month).zfill(2))
+    out_file = os.path.join(output_dir, out_file_name)
+    # Extract variable
+    subdaily_netcdf(
+        temp_dir_download, out_file, var_name, initial_year, final_year,
+        verbose=verbose)
+    if delete_temp_dir:
+        shutil.rmtree(temp_dir_download)
