@@ -9,7 +9,7 @@ import numpy as np
 import numpy.ma as ma
 import netCDF4
 
-from merra2_variables import subdaily_vars
+from merra2_variables import merra2_vars
 
 # Aliases for default fill values
 defi2 = netCDF4.default_fillvals['i2']
@@ -77,12 +77,11 @@ def fixed_netcdf(path_data, output_file, var_name, merra2_var_dict=None):
         Dictionary containing the following keys:
         esdt_dir, collection, merra_name, standard_name,
         see the Bosilovich paper for details.
-    verbose : bool
 
     """
 
     if not merra2_var_dict:
-        merra2_var_dict = subdaily_vars[var_name]
+        merra2_var_dict = merra2_vars[var_name]
 
     search_str = "*{0}*.nc4".format(merra2_var_dict['collection'])
     nc_files = glob.glob(os.path.join(path_data, search_str))
@@ -247,7 +246,7 @@ def subdaily_netcdf(path_data, output_file, var_name, initial_year,
     """
 
     if not merra2_var_dict:
-        merra2_var_dict = subdaily_vars[var_name]
+        merra2_var_dict = merra2_vars[var_name]
 
     search_str = "*{0}*.nc4".format(merra2_var_dict['collection'])
     nc_files = glob.glob(os.path.join(path_data, search_str))
@@ -393,7 +392,7 @@ def subdaily_netcdf(path_data, output_file, var_name, initial_year,
             if verbose:
                 print(nc_file)
             nc = netCDF4.Dataset(nc_file, 'r')
-            ncvar = nc.variables[subdaily_vars[var_name]['merra_name']]
+            ncvar = nc.variables[merra2_var_dict['merra_name']]
             nctime = nc.variables['time']
             ncdatetime = netCDF4.num2date(nctime[:], nctime.units)
             if merra2_var_dict['cell_methods']:
@@ -458,7 +457,7 @@ def subdaily_download_and_convert(var_names, initial_year, final_year,
     temp_dir_download = tempfile.mkdtemp(dir=output_dir)
     for i, var_name in enumerate(var_names):
         if not merra2_var_dicts:
-            merra2_var_dict = subdaily_vars[var_name]
+            merra2_var_dict = merra2_vars[var_name]
         else:
             merra2_var_dict = merra2_var_dicts[i]
         # Download subdaily files
@@ -513,7 +512,7 @@ def daily_netcdf(path_data, output_file, var_name, initial_year, final_year,
     """
 
     if not merra2_var_dict:
-        merra2_var_dict = subdaily_vars[var_name]
+        merra2_var_dict = merra2_vars[var_name]
 
     search_str = "*{0}*.nc4".format(merra2_var_dict['collection'])
     nc_files = glob.glob(os.path.join(path_data, search_str))
@@ -652,7 +651,7 @@ def daily_netcdf(path_data, output_file, var_name, initial_year, final_year,
             if verbose:
                 print(nc_file)
             nc = netCDF4.Dataset(nc_file, 'r')
-            ncvar = nc.variables[subdaily_vars[var_name]['merra_name']]
+            ncvar = nc.variables[merra2_var_dict['merra_name']]
             nctime = nc.variables['time']
             ncdatetime = netCDF4.num2date(nctime[:], nctime.units)
             nctime_1980 = np.round(netCDF4.date2num(ncdatetime, time.units))
@@ -714,7 +713,7 @@ def daily_download_and_convert(var_names, initial_year, final_year,
     temp_dir_download = tempfile.mkdtemp(dir=output_dir)
     for i, var_name in enumerate(var_names):
         if not merra2_var_dicts:
-            merra2_var_dict = subdaily_vars[var_name]
+            merra2_var_dict = merra2_vars[var_name]
         else:
             merra2_var_dict = merra2_var_dicts[i]
         # Download subdaily files
