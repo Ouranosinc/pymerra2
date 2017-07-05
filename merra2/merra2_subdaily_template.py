@@ -1,16 +1,42 @@
 import merra2
 
-# Here we process 2 variables at a time to avoid downloading the original
-# data twice (both are in the same file)
-var_names = ['uas', 'vas']
-delete_temp_dir = False
-download_dir = '/scen3/stdenis/projects/climate_datasets/merra2/data'
+# Here we process multiple variables at a time to avoid downloading
+# original data twice (all these variables are in the same files).
+# These variables names are user choices, their merra-2 equivalent are
+# specified below or in the default merra2_variables.py
+var_names = ['pr', 'prsn', 'prc']
+delete_temp_dir = True
+download_dir = '/path/to/output'
+
+# The variables specification is in the same order as var_names above.
+# esdt_dir, collection and merra_name can be found from
+# https://gmao.gsfc.nasa.gov/pubs/docs/Bosilovich785.pdf
+# https://goldsmr4.gesdisc.eosdis.nasa.gov/data/
+# standard_name comes from
+# http://cfconventions.org/standard-names.html
+# Optionally, if all the variables are already in the default
+# merra2_variables.py, this can be set to None.
+merra2_var_dicts = [{'esdt_dir': 'M2T1NXFLX.5.12.4',
+                     'collection': 'tavg1_2d_flx_Nx',
+                     'merra_name': 'PRECTOT',
+                     'standard_name': 'precipitation_flux',
+                     'cell_methods': 'time: mean'},
+                    {'esdt_dir': 'M2T1NXFLX.5.12.4',
+                     'collection': 'tavg1_2d_flx_Nx',
+                     'merra_name': 'PRECSNO',
+                     'standard_name': 'snowfall_flux',
+                     'cell_methods': 'time: mean'},
+                    {'esdt_dir': 'M2T1NXFLX.5.12.4',
+                     'collection': 'tavg1_2d_flx_Nx',
+                     'merra_name': 'PRECCON',
+                     'standard_name': 'convective_precipitation_flux',
+                     'cell_methods': 'time: mean'}]
 
 # This loop will create monthly files of hourly MERRA2 data
-for yyyy in range(1980, 1981):
-    for mm in range(1, 2):
+for yyyy in range(1980, 2017):
+    for mm in range(1, 13):
         merra2.subdaily_download_and_convert(
-            var_names, merra2_var_dicts=None, initial_year=yyyy,
+            var_names, merra2_var_dicts=merra2_var_dicts, initial_year=yyyy,
             final_year=yyyy, initial_month=mm, final_month=mm, initial_day=1,
             final_day=None, output_dir=download_dir,
             delete_temp_dir=delete_temp_dir)

@@ -1,12 +1,38 @@
 import merra2
 
-# Here we process 2 variables at a time to avoid downloading the original
-# data twice (both are in the same file)
+# Here we process multiple variables at a time to avoid downloading the
+# original data twice (all these variables are in the same files).
+# These variables names are user choices, their merra-2 equivalent are
+# specified below or in the default merra2_variables.py
 var_names = ['tasmin', 'tasmax','prmax']
 delete_temp_dir = True
-download_dir = '/scen3/stdenis/projects/climate_datasets/merra2/data'
+download_dir = '/path/to/output'
 
-# This loop will create annual files of hourly MERRA2 data
+# The variables specification is in the same order as var_names above.
+# esdt_dir, collection and merra_name can be found from
+# https://gmao.gsfc.nasa.gov/pubs/docs/Bosilovich785.pdf
+# https://goldsmr4.gesdisc.eosdis.nasa.gov/data/
+# standard_name comes from
+# http://cfconventions.org/standard-names.html
+# Optionally, if all the variables are already in the default
+# merra2_variables.py, this can be set to None.
+merra2_var_dicts = [{'esdt_dir': 'M2SDNXSLV.5.12.4',
+                     'collection': 'statD_2d_slv_Nx',
+                     'merra_name': 'T2MMAX',
+                     'standard_name': 'air_temperature',
+                     'cell_methods': 'time: max'},
+                    {'esdt_dir': 'M2SDNXSLV.5.12.4',
+                     'collection': 'statD_2d_slv_Nx',
+                     'merra_name': 'T2MMIN',
+                     'standard_name': 'air_temperature',
+                     'cell_methods': 'time: min'},
+                    {'esdt_dir': 'M2SDNXSLV.5.12.4',
+                     'collection': 'statD_2d_slv_Nx',
+                     'merra_name': 'TPRECMAX',
+                     'standard_name': 'precipitation_flux',
+                     'cell_methods': 'time: max'}]
+
+# This loop will create annual files of daily MERRA2 data
 for yyyy in range(1980, 2017):
     merra2.daily_download_and_convert(
         var_names, merra2_var_dicts=None, initial_year=yyyy,

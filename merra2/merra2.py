@@ -65,6 +65,99 @@ def _datetimes_to_time_vectors(datetimes):
         return _time_vectors_int(ma.array(time_tuples))
 
 
+def fixed_netcdf(path_data, output_file, var_name, merra2_var_dict=None):
+    """MERRA2 invariant NetCDF.
+
+    Parameters
+    ----------
+    path_data : str
+    output_file : str
+    var_name : str
+    merra2_var_dict : dict
+        Dictionary containing the following keys:
+        esdt_dir, collection, merra_name, standard_name,
+        see the Bosilovich paper for details.
+    verbose : bool
+
+    """
+
+    if not merra2_var_dict:
+        merra2_var_dict = subdaily_vars[var_name]
+
+    search_str = "*{0}*.nc4".format(merra2_var_dict['collection'])
+    nc_files = glob.glob(os.path.join(path_data, search_str))
+
+    nc_reference = netCDF4.Dataset(nc_files[0], 'r')
+    var_ref = nc_reference.variables[merra2_var_dict['merra_name']]
+
+    # 2.1 Filename
+    #     NetCDF files should have the file name extension ".nc".
+    nc_file = output_file
+
+    now = datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+    nc1 = netCDF4.Dataset(nc_file, 'w', format='NETCDF4_CLASSIC')
+
+    # 2.6.1 Identification of Conventions
+    nc1.Conventions = 'CF-1.6'
+
+    # 2.6.2. Description of file contents
+    nc1.title = ('Modern-Era Retrospective analysis for Research and '
+                 'Applications, Version 2')
+    nc1.history = "%s: Extract variable." % (now,)
+    nc1.institution = nc_reference.Institution
+    nc1.source = 'Reanalysis'
+    nc1.references = nc_reference.References
+    for attr in nc_reference.ncattrs():
+        setattr(nc1, 'original_file_' + attr, getattr(nc_reference, attr))
+
+    # Create netCDF dimensions
+    nc1.createDimension('lat', len(nc_reference.dimensions['lat']))
+    nc1.createDimension('lon', len(nc_reference.dimensions['lon']))
+
+    # Create netCDF variables
+    # Compression parameters include:
+    # zlib=True,complevel=9,least_significant_digit=1
+    # Set the fill value (shown with the 'f4' default value here) using:
+    # fill_value=netCDF4.default_fillvals['f4']
+    # In order to also follow COARDS convention, it is suggested to enforce the
+    # following rule (this is used, for example, in nctoolbox for MATLAB):
+    #     Coordinate Variables:
+    #     1-dimensional netCDF variables whose dimension names are identical to
+    #     their variable names are regarded as "coordinate variables"
+    #     (axes of the underlying grid structure of other variables defined on
+    #     this dimension).
+
+    # 4.1. Latitude Coordinate
+    lat = nc1.createVariable('lat', 'f4', ('lat',), zlib=True)
+    lat.axis = 'Y'
+    lat.units = 'degrees_north'
+    lat.long_name = 'latitude'
+    lat.standard_name = 'latitude'
+    lat[:] = nc_reference.variables['lat'][:]
+
+    # 4.2. Longitude Coordinate
+    lon = nc1.createVariable('lon', 'f4', ('lon',), zlib=True)
+    lon.axis = 'X'
+    lon.units = 'degrees_east'
+    lon.long_name = 'longitude'
+    lon.standard_name = 'longitude'
+    lon[:] = nc_reference.variables['lon'][:]
+
+    var1 = nc1.createVariable(var_name, 'f4', ('lat', 'lon'), zlib=True,
+                              fill_value=deff4)
+    # 3.1. Units
+    var1.units = var_ref.units
+    # 3.2. Long Name
+    var1.long_name = var_ref.long_name
+    # 3.3. Standard Name
+    var1.standard_name = merra2_var_dict['standard_name']
+    var_ref = nc_reference.variables[merra2_var_dict['merra_name']]
+    var1[:,:] = var_ref[0,:,:]
+
+    nc_reference.close()
+    nc1.close()
+
+
 def subdaily_download(dataset_esdt, merra2_collection, initial_year,
                       final_year, initial_month=1, final_month=12,
                       initial_day=1, final_day=None, output_directory=None):
@@ -198,17 +291,21 @@ def subdaily_netcdf(path_data, output_file, var_name, initial_year,
     # 2.6.2. Description of file contents
     nc1.title = ('Modern-Era Retrospective analysis for Research and '
                  'Applications, Version 2')
-    nc1.history = "%s: Convert from original format to NetCDF" % (now,)
-    nc1.institution = 'NASA'
+    nc1.history = "%s: Extract variable and merge in time." % (now,)
+    nc1.institution = nc_reference.Institution
     nc1.source = 'Reanalysis'
-    nc1.references = 'https://gmao.gsfc.nasa.gov/reanalysis/MERRA-2/'
+    nc1.references = nc_reference.References
+    for attr in nc_reference.ncattrs():
+        setattr(nc1, 'first_file_' + attr, getattr(nc_reference, attr))
 
     # Create netCDF dimensions
     nc1.createDimension('time', nt)
-    nc1.createDimension('ts', 6)
+    # nc1.createDimension('ts', 6)
     # nc1.createDimension('level', k)
     nc1.createDimension('lat', len(nc_reference.dimensions['lat']))
     nc1.createDimension('lon', len(nc_reference.dimensions['lon']))
+    if merra2_var_dict['cell_methods']:
+        nc1.createDimension('nv', 2)
 
     # Create netCDF variables
     # Compression parameters include:
@@ -224,10 +321,13 @@ def subdaily_netcdf(path_data, output_file, var_name, initial_year,
     #     this dimension).
 
     # COADS requirements
-    nc1.createVariable('ts', 'i2', ('ts',), zlib=True, fill_value=defi2)
+    # nc1.createVariable('ts', 'i2', ('ts',), zlib=True, fill_value=defi2)
 
     # 4.4. Time Coordinate
-    time = nc1.createVariable('time', 'i4', ('time',), zlib=True)
+    if merra2_var_dict['cell_methods']:
+        time = nc1.createVariable('time', 'f4', ('time',))
+    else:
+        time = nc1.createVariable('time', 'i4', ('time',))
     time.axis = 'T'
     time.units = "hours since 1980-01-01 00:00:00"
     time.long_name = 'time'
@@ -235,8 +335,11 @@ def subdaily_netcdf(path_data, output_file, var_name, initial_year,
     # 4.4.1. Calendar
     time.calendar = 'gregorian'
 
-    time_vectors = nc1.createVariable('time_vectors', 'i2', ('time', 'ts'),
-                                      zlib=True)
+    if merra2_var_dict['cell_methods']:
+        tbounds = nc1.createVariable('time_bounds', 'f4', ('time', 'nv'))
+
+    # time_vectors = nc1.createVariable('time_vectors', 'i2', ('time', 'ts'),
+    #                                   zlib=True)
 
     # 4.3. Vertical (Height or Depth) Coordinate
     # level = nc1.createVariable('level','f4',('level',),zlib=True)
@@ -247,7 +350,7 @@ def subdaily_netcdf(path_data, output_file, var_name, initial_year,
     # level.standard_name = 'air_pressure'
 
     # 4.1. Latitude Coordinate
-    lat = nc1.createVariable('lat', 'f4', ('lat',), zlib=True)
+    lat = nc1.createVariable('lat', 'f4', ('lat',))
     lat.axis = 'Y'
     lat.units = 'degrees_north'
     lat.long_name = 'latitude'
@@ -255,7 +358,7 @@ def subdaily_netcdf(path_data, output_file, var_name, initial_year,
     lat[:] = nc_reference.variables['lat'][:]
 
     # 4.2. Longitude Coordinate
-    lon = nc1.createVariable('lon', 'f4', ('lon',), zlib=True)
+    lon = nc1.createVariable('lon', 'f4', ('lon',))
     lon.axis = 'X'
     lon.units = 'degrees_east'
     lon.long_name = 'longitude'
@@ -266,11 +369,17 @@ def subdaily_netcdf(path_data, output_file, var_name, initial_year,
                               zlib=True, chunksizes=(360, 30, 30),
                               fill_value=deff4)
     # 3.1. Units
-    var1.units = var_ref.units
+    # Force kg kg-1 to 1
+    if var_ref.units == 'kg kg-1':
+        var1.units = '1'
+    else:
+        var1.units = var_ref.units
     # 3.2. Long Name
     var1.long_name = var_ref.long_name
     # 3.3. Standard Name
     var1.standard_name = merra2_var_dict['standard_name']
+    if merra2_var_dict['cell_methods']:
+        var1.cell_methods = merra2_var_dict['cell_methods']
 
     nc_reference.close()
 
@@ -287,18 +396,29 @@ def subdaily_netcdf(path_data, output_file, var_name, initial_year,
             ncvar = nc.variables[subdaily_vars[var_name]['merra_name']]
             nctime = nc.variables['time']
             ncdatetime = netCDF4.num2date(nctime[:], nctime.units)
-            nctime_1980 = np.round(netCDF4.date2num(ncdatetime, time.units))
+            if merra2_var_dict['cell_methods']:
+                nctime_1980 = netCDF4.date2num(ncdatetime, time.units)
+            else:
+                nctime_1980 = np.round(
+                    netCDF4.date2num(ncdatetime, time.units))
             tmp_data[ttmp:ttmp+ncvar.shape[0],:,:] = ncvar[:,:,:]
             tmp_time[ttmp:ttmp+ncvar.shape[0]] = nctime_1980[:]
             ttmp += ncvar.shape[0]
             nc.close()
         var1[t:t+tmp_data.shape[0],:,:] = tmp_data[:,:,:]
         time[t:t+tmp_data.shape[0]] = tmp_time[:]
+        if merra2_var_dict['cell_methods']:
+            if tmp_time[1]-tmp_time[0] == 1.0:
+                tbounds[t:t+tmp_data.shape[0],0] = tmp_time[:]-0.5
+                tbounds[t:t+tmp_data.shape[0],1] = tmp_time[:]+0.5
+            elif tmp_time[1]-tmp_time[0] == 3.0:
+                tbounds[t:t+tmp_data.shape[0],0] = tmp_time[:]-1.5
+                tbounds[t:t+tmp_data.shape[0],1] = tmp_time[:]+1.5
         t += tmp_data.shape[0]
 
     # Methods to fill time and time_vectors variables:
-    datetimes = netCDF4.num2date(time[:], time.units, time.calendar)
-    time_vectors[:,:] = _datetimes_to_time_vectors(datetimes)
+    # datetimes = netCDF4.num2date(time[:], time.units, time.calendar)
+    # time_vectors[:,:] = _datetimes_to_time_vectors(datetimes)
 
     nc1.close()
 
@@ -437,17 +557,21 @@ def daily_netcdf(path_data, output_file, var_name, initial_year, final_year,
     # 2.6.2. Description of file contents
     nc1.title = ('Modern-Era Retrospective analysis for Research and '
                  'Applications, Version 2')
-    nc1.history = "%s: Convert from original format to NetCDF" % (now,)
-    nc1.institution = 'NASA'
+    nc1.history = "%s: Extract variable and merge in time." % (now,)
+    nc1.institution = nc_reference.Institution
     nc1.source = 'Reanalysis'
-    nc1.references = 'https://gmao.gsfc.nasa.gov/reanalysis/MERRA-2/'
+    nc1.references = nc_reference.References
+    for attr in nc_reference.ncattrs():
+        setattr(nc1, 'first_file_' + attr, getattr(nc_reference, attr))
 
     # Create netCDF dimensions
     nc1.createDimension('time', nt)
-    nc1.createDimension('ts', 6)
+    # nc1.createDimension('ts', 6)
     # nc1.createDimension('level', k)
     nc1.createDimension('lat', len(nc_reference.dimensions['lat']))
     nc1.createDimension('lon', len(nc_reference.dimensions['lon']))
+    if merra2_var_dict['cell_methods']:
+        nc1.createDimension('nv', 2)
 
     # Create netCDF variables
     # Compression parameters include:
@@ -463,7 +587,7 @@ def daily_netcdf(path_data, output_file, var_name, initial_year, final_year,
     #     this dimension).
 
     # COADS requirements
-    nc1.createVariable('ts', 'i2', ('ts',), zlib=True, fill_value=defi2)
+    # nc1.createVariable('ts', 'i2', ('ts',), zlib=True, fill_value=defi2)
 
     # 4.4. Time Coordinate
     time = nc1.createVariable('time', 'i4', ('time',), zlib=True)
@@ -474,8 +598,11 @@ def daily_netcdf(path_data, output_file, var_name, initial_year, final_year,
     # 4.4.1. Calendar
     time.calendar = 'gregorian'
 
-    time_vectors = nc1.createVariable('time_vectors', 'i2', ('time', 'ts'),
-                                      zlib=True)
+    if merra2_var_dict['cell_methods']:
+        tbounds = nc1.createVariable('time_bounds', 'i4', ('time', 'nv'))
+
+    #time_vectors = nc1.createVariable('time_vectors', 'i2', ('time', 'ts'),
+    #                                  zlib=True)
 
     # 4.3. Vertical (Height or Depth) Coordinate
     # level = nc1.createVariable('level','f4',('level',),zlib=True)
@@ -510,6 +637,8 @@ def daily_netcdf(path_data, output_file, var_name, initial_year, final_year,
     var1.long_name = var_ref.long_name
     # 3.3. Standard Name
     var1.standard_name = merra2_var_dict['standard_name']
+    if merra2_var_dict['cell_methods']:
+        var1.cell_methods = merra2_var_dict['cell_methods']
 
     nc_reference.close()
 
@@ -533,11 +662,14 @@ def daily_netcdf(path_data, output_file, var_name, initial_year, final_year,
             nc.close()
         var1[t:t+tmp_data.shape[0],:,:] = tmp_data[:,:,:]
         time[t:t+tmp_data.shape[0]] = tmp_time[:]
+        if merra2_var_dict['cell_methods']:
+            tbounds[t:t+tmp_data.shape[0],0] = tmp_time[:]-12
+            tbounds[t:t+tmp_data.shape[0],1] = tmp_time[:]+12
         t += tmp_data.shape[0]
 
     # Methods to fill time and time_vectors variables:
-    datetimes = netCDF4.num2date(time[:], time.units, time.calendar)
-    time_vectors[:,:] = _datetimes_to_time_vectors(datetimes)
+    #datetimes = netCDF4.num2date(time[:], time.units, time.calendar)
+    #time_vectors[:,:] = _datetimes_to_time_vectors(datetimes)
 
     nc1.close()
 
