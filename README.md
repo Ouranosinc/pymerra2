@@ -12,8 +12,9 @@ for the same variables.
 The collection name and the esdt are in the name of each section of that
 document, e.g. collection = tavg1_2d_flx_Nx and esdt = M2T1NXFLX.
 However, the actual esdt directory on the server also has a suffix, that
-can be verified on the server itself:
+can be verified on the servers themself:
 https://goldsmr4.gesdisc.eosdis.nasa.gov/data/
+https://goldsmr5.sci.gsfc.nasa.gov/data/
 so we set esdt_dir = M2T1NXFLX.5.12.4
 
 These information can be given to the various functions as a dictionary,

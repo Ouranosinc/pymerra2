@@ -7,6 +7,7 @@ import merra2
 var_names = ['pr', 'prsn', 'prc']
 delete_temp_dir = True
 download_dir = '/path/to/output'
+merra2_server = 'https://goldsmr4.gesdisc.eosdis.nasa.gov/data/'
 
 # The variables specification is in the same order as var_names above.
 # esdt_dir, collection and merra_name can be found from
@@ -36,7 +37,7 @@ merra2_var_dicts = [{'esdt_dir': 'M2T1NXFLX.5.12.4',
 for yyyy in range(1980, 2017):
     for mm in range(1, 13):
         merra2.subdaily_download_and_convert(
-            var_names, merra2_var_dicts=merra2_var_dicts, initial_year=yyyy,
-            final_year=yyyy, initial_month=mm, final_month=mm, initial_day=1,
-            final_day=None, output_dir=download_dir,
-            delete_temp_dir=delete_temp_dir)
+            merra2_server, var_names, merra2_var_dicts=merra2_var_dicts,
+            initial_year=yyyy, final_year=yyyy, initial_month=mm,
+            final_month=mm, initial_day=1, final_day=None,
+            output_dir=download_dir, delete_temp_dir=delete_temp_dir)

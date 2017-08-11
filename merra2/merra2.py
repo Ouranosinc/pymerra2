@@ -157,13 +157,17 @@ def fixed_netcdf(path_data, output_file, var_name, merra2_var_dict=None):
     nc1.close()
 
 
-def subdaily_download(dataset_esdt, merra2_collection, initial_year,
-                      final_year, initial_month=1, final_month=12,
-                      initial_day=1, final_day=None, output_directory=None):
+def subdaily_download(merra2_server, dataset_esdt, merra2_collection,
+                      initial_year, final_year, initial_month=1,
+                      final_month=12, initial_day=1, final_day=None,
+                      output_directory=None):
     """MERRA2 subdaily download.
 
     Parameters
     ----------
+    merra2_server : string
+        Must contain trailing slash.
+        e.g. https://goldsmr4.gesdisc.eosdis.nasa.gov/data/
     dataset_esdt : string
         See the Bosilovich paper for details.
     merra2_collection : string
@@ -183,9 +187,8 @@ def subdaily_download(dataset_esdt, merra2_collection, initial_year,
     else:
         add_output_dir = "--directory-prefix={0} ".format(output_directory)
     merra_cmd = ("wget -c {0}--load-cookies ~/.urs_cookies "
-                 "--save-cookies ~/.urs_cookies --keep-session-cookies "
-                 "https://goldsmr4.gesdisc.eosdis.nasa.gov/data/")
-    merra_cmd = merra_cmd.format(add_output_dir)
+                 "--save-cookies ~/.urs_cookies --keep-session-cookies {1}")
+    merra_cmd = merra_cmd.format(add_output_dir, merra2_server)
     data_path = ("MERRA2/{4}/{0}/{1}/"
                  "MERRA2_{3}.{5}.{0}{1}{2}.nc4")
     for yyyy in range(initial_year, final_year+1):
@@ -238,10 +241,6 @@ def subdaily_netcdf(path_data, output_file, var_name, initial_year,
         esdt_dir, collection, merra_name, standard_name,
         see the Bosilovich paper for details.
     verbose : bool
-
-    Notes
-    -----
-    Currently does not deal with the level aspect (and therefore 3d fields).
 
     """
 
@@ -300,7 +299,8 @@ def subdaily_netcdf(path_data, output_file, var_name, initial_year,
     # Create netCDF dimensions
     nc1.createDimension('time', nt)
     # nc1.createDimension('ts', 6)
-    # nc1.createDimension('level', k)
+    if 'lev' in nc_reference.dimensions:
+        nc1.createDimension('level', nc_reference.dimensions['lev'].size)
     nc1.createDimension('lat', len(nc_reference.dimensions['lat']))
     nc1.createDimension('lon', len(nc_reference.dimensions['lon']))
     if merra2_var_dict['cell_methods']:
@@ -341,13 +341,19 @@ def subdaily_netcdf(path_data, output_file, var_name, initial_year,
     #                                   zlib=True)
 
     # 4.3. Vertical (Height or Depth) Coordinate
-    # level = nc1.createVariable('level','f4',('level',),zlib=True)
-    # level.axis = 'Z'
-    # level.units = 'Pa'
-    # level.positive = 'up'
-    # level.long_name = 'air_pressure'
-    # level.standard_name = 'air_pressure'
-
+    if 'lev' in nc_reference.dimensions:
+        level = nc1.createVariable('level', 'i2', ('level',), zlib=True)
+        level.axis = 'Z'
+        level.units = 'Pa'
+        level.positive = 'down'
+        level.long_name = 'air_pressure'
+        level.standard_name = 'air_pressure'
+        level_ref = nc_reference.variables['lev']
+        if level_ref.units == 'hPa':
+            level[:] = np.round(level_ref[:]*100)
+        else:
+            raise NotImplementedError()
+    
     # 4.1. Latitude Coordinate
     lat = nc1.createVariable('lat', 'f4', ('lat',))
     lat.axis = 'Y'
@@ -364,9 +370,12 @@ def subdaily_netcdf(path_data, output_file, var_name, initial_year,
     lon.standard_name = 'longitude'
     lon[:] = nc_reference.variables['lon'][:]
 
-    var1 = nc1.createVariable(var_name, 'f4', ('time', 'lat', 'lon'),
-                              zlib=True, chunksizes=(360, 30, 30),
-                              fill_value=deff4)
+    if 'lev' in nc_reference.dimensions:
+        var_dims = ('time', 'level', 'lat', 'lon')
+    else:
+        var_dims = ('time', 'lat', 'lon')
+    var1 = nc1.createVariable(var_name, 'f4', var_dims, zlib=True,
+                              chunksizes=(360, 30, 30), fill_value=deff4)
     # 3.1. Units
     # Force kg kg-1 to 1
     if var_ref.units == 'kg kg-1':
@@ -384,8 +393,14 @@ def subdaily_netcdf(path_data, output_file, var_name, initial_year,
 
     t = 0
     for i, division in enumerate(divided_files):
-        tmp_data = ma.masked_all([nt_division[i], len(nc1.dimensions['lat']),
-                                  len(nc1.dimensions['lon'])])
+        if 'lev' in nc_reference.dimensions:
+            tmp_data = ma.masked_all(
+                [nt_division[i], len(nc1.dimensions['level']),
+                 len(nc1.dimensions['lat']), len(nc1.dimensions['lon'])])
+        else:
+            tmp_data = ma.masked_all(
+                [nt_division[i], len(nc1.dimensions['lat']),
+                 len(nc1.dimensions['lon'])])
         tmp_time = ma.masked_all([nt_division[i]])
         ttmp = 0
         for nc_file in division:
@@ -400,11 +415,17 @@ def subdaily_netcdf(path_data, output_file, var_name, initial_year,
             else:
                 nctime_1980 = np.round(
                     netCDF4.date2num(ncdatetime, time.units))
-            tmp_data[ttmp:ttmp+ncvar.shape[0],:,:] = ncvar[:,:,:]
+            if 'lev' in nc_reference.dimensions:
+                tmp_data[ttmp:ttmp+ncvar.shape[0],:,:,:] = ncvar[:,:,:,:]
+            else:
+                tmp_data[ttmp:ttmp+ncvar.shape[0],:,:] = ncvar[:,:,:]
             tmp_time[ttmp:ttmp+ncvar.shape[0]] = nctime_1980[:]
             ttmp += ncvar.shape[0]
             nc.close()
-        var1[t:t+tmp_data.shape[0],:,:] = tmp_data[:,:,:]
+        if 'lev' in nc_reference.dimensions:
+            var1[t:t+tmp_data.shape[0],:,:,:] = tmp_data[:,:,:,:]
+        else:
+            var1[t:t+tmp_data.shape[0],:,:] = tmp_data[:,:,:]
         time[t:t+tmp_data.shape[0]] = tmp_time[:]
         if merra2_var_dict['cell_methods']:
             if tmp_time[1]-tmp_time[0] == 1.0:
@@ -422,8 +443,8 @@ def subdaily_netcdf(path_data, output_file, var_name, initial_year,
     nc1.close()
 
 
-def subdaily_download_and_convert(var_names, initial_year, final_year,
-                                  initial_month=1, final_month=12,
+def subdaily_download_and_convert(merra2_server, var_names, initial_year,
+                                  final_year, initial_month=1, final_month=12,
                                   initial_day=1, final_day=None,
                                   merra2_var_dicts=None, output_dir=None,
                                   delete_temp_dir=True, verbose=True):
@@ -431,6 +452,9 @@ def subdaily_download_and_convert(var_names, initial_year, final_year,
 
     Parameters
     ----------
+    merra2_server : string
+        Must contain trailing slash.
+        e.g. https://goldsmr4.gesdisc.eosdis.nasa.gov/data/
     var_names : list of string
         Variable short names, must be defined in merra2_variables.py
         if merra2_var_dict is not provided. If more than one variable,
@@ -463,10 +487,11 @@ def subdaily_download_and_convert(var_names, initial_year, final_year,
         # Download subdaily files
         if i == 0:
             subdaily_download(
-                merra2_var_dict['esdt_dir'], merra2_var_dict['collection'],
-                initial_year, final_year, initial_month=initial_month,
-                final_month=final_month, initial_day=initial_day,
-                final_day=final_day, output_directory=temp_dir_download)
+                merra2_server, merra2_var_dict['esdt_dir'],
+                merra2_var_dict['collection'], initial_year, final_year,
+                initial_month=initial_month, final_month=final_month,
+                initial_day=initial_day, final_day=final_day,
+                output_directory=temp_dir_download)
         # Name the output file
         if (initial_year == final_year) and (initial_month == final_month):
             file_name_str = "{0}_1hr_merra2_reanalysis_{1}{2}.nc"
@@ -673,8 +698,8 @@ def daily_netcdf(path_data, output_file, var_name, initial_year, final_year,
     nc1.close()
 
 
-def daily_download_and_convert(var_names, initial_year, final_year,
-                               initial_month=1, final_month=12,
+def daily_download_and_convert(merra2_server, var_names, initial_year,
+                               final_year, initial_month=1, final_month=12,
                                initial_day=1, final_day=None,
                                merra2_var_dicts=None, output_dir=None,
                                delete_temp_dir=True, verbose=True):
@@ -682,6 +707,9 @@ def daily_download_and_convert(var_names, initial_year, final_year,
 
     Parameters
     ----------
+    merra2_server : string
+        Must contain trailing slash.
+        e.g. https://goldsmr4.gesdisc.eosdis.nasa.gov/data/
     var_names : list of string
         Variable short names, must be defined in merra2_variables.py
         if merra2_var_dict is not provided. If more than one variable,
@@ -719,10 +747,11 @@ def daily_download_and_convert(var_names, initial_year, final_year,
         # Download subdaily files
         if i == 0:
             subdaily_download(
-                merra2_var_dict['esdt_dir'], merra2_var_dict['collection'],
-                initial_year, final_year, initial_month=initial_month,
-                final_month=final_month, initial_day=initial_day,
-                final_day=final_day, output_directory=temp_dir_download)
+                merra2_server, merra2_var_dict['esdt_dir'],
+                merra2_var_dict['collection'], initial_year, final_year,
+                initial_month=initial_month, final_month=final_month,
+                initial_day=initial_day, final_day=final_day,
+                output_directory=temp_dir_download)
         # Name the output file
         if (initial_year == final_year):
             file_name_str = "{0}_day_merra2_reanalysis_{1}.nc"

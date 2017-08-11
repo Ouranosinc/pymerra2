@@ -7,6 +7,7 @@ import merra2
 var_names = ['tasmin', 'tasmax','prmax']
 delete_temp_dir = True
 download_dir = '/path/to/output'
+merra2_server = 'https://goldsmr4.gesdisc.eosdis.nasa.gov/data/'
 
 # The variables specification is in the same order as var_names above.
 # esdt_dir, collection and merra_name can be found from
@@ -35,7 +36,7 @@ merra2_var_dicts = [{'esdt_dir': 'M2SDNXSLV.5.12.4',
 # This loop will create annual files of daily MERRA2 data
 for yyyy in range(1980, 2017):
     merra2.daily_download_and_convert(
-        var_names, merra2_var_dicts=None, initial_year=yyyy,
+        merra2_server, var_names, merra2_var_dicts=None, initial_year=yyyy,
         final_year=yyyy, initial_month=1, final_month=12, initial_day=1,
         final_day=None, output_dir=download_dir,
         delete_temp_dir=delete_temp_dir)
