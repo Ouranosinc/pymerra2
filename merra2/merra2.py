@@ -374,8 +374,13 @@ def subdaily_netcdf(path_data, output_file, var_name, initial_year,
         var_dims = ('time', 'level', 'lat', 'lon')
     else:
         var_dims = ('time', 'lat', 'lon')
+    # Here, the chunksize is set rather arbitrarily...
+    if 'lev' in nc_reference.dimensions:
+        var1_chunksizes = (8, 6, 121, 144)
+    else:
+        var1_chunksizes = (360, 30, 30)
     var1 = nc1.createVariable(var_name, 'f4', var_dims, zlib=True,
-                              chunksizes=(360, 30, 30), fill_value=deff4)
+                              chunksizes=var1_chunksizes, fill_value=deff4)
     # 3.1. Units
     # Force kg kg-1 to 1
     if var_ref.units == 'kg kg-1':
@@ -494,9 +499,15 @@ def subdaily_download_and_convert(merra2_server, var_names, initial_year,
                 output_directory=temp_dir_download)
         # Name the output file
         if (initial_year == final_year) and (initial_month == final_month):
-            file_name_str = "{0}_1hr_merra2_reanalysis_{1}{2}.nc"
-            out_file_name = file_name_str.format(
-                var_name, str(initial_year), str(initial_month).zfill(2))
+            if initial_day == final_day:
+                file_name_str = "{0}_1hr_merra2_reanalysis_{1}{2}{3}.nc"
+                out_file_name = file_name_str.format(
+                    var_name, str(initial_year), str(initial_month).zfill(2),
+                    str(initial_day).zfill(2))
+            else:
+                file_name_str = "{0}_1hr_merra2_reanalysis_{1}{2}.nc"
+                out_file_name = file_name_str.format(
+                    var_name, str(initial_year), str(initial_month).zfill(2))
         else:
             file_name_str = "{0}_1hr_merra2_reanalysis_{1}{2}-{3}{4}.nc"
             out_file_name = file_name_str.format(

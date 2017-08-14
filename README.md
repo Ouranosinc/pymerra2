@@ -23,4 +23,9 @@ CF Standard Names can be found at http://cfconventions.org/standard-names.html
 
 ## Limitations
 
-Currently does not support 3D fields.
+- Chunksizes can be set rather arbitrarily.
+- Naming files is forced to some common cases, not fully customizable.
+- Constant fields required manually downloading a file first.
+- Daily NetCDF functions are slightly modified copies of subdaily functions,
+  should be combined into one with calls to time frequency dependent
+  subfunctions.
