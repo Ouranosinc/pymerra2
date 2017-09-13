@@ -11,6 +11,10 @@ import netCDF4
 
 from merra2_variables import merra2_vars
 
+# Version, should be move to an __init__.py file if ever creating
+# a package out of this...
+__version__ = '0.1.1'
+
 # Aliases for default fill values
 defi2 = netCDF4.default_fillvals['i2']
 defi4 = netCDF4.default_fillvals['i4']
@@ -97,12 +101,15 @@ def fixed_netcdf(path_data, output_file, var_name, merra2_var_dict=None):
     nc1 = netCDF4.Dataset(nc_file, 'w', format='NETCDF4_CLASSIC')
 
     # 2.6.1 Identification of Conventions
-    nc1.Conventions = 'CF-1.6'
+    nc1.Conventions = 'CF-1.7'
 
     # 2.6.2. Description of file contents
     nc1.title = ('Modern-Era Retrospective analysis for Research and '
                  'Applications, Version 2')
-    nc1.history = "%s: Extract variable." % (now,)
+    nc1.history = ("{0} (pymerra2-{1}): "
+                   "Reformat to CF-1.7 & "
+                   "Extract variable.").format(
+        now, __version__)
     nc1.institution = nc_reference.Institution
     nc1.source = 'Reanalysis'
     nc1.references = nc_reference.References
@@ -142,8 +149,10 @@ def fixed_netcdf(path_data, output_file, var_name, merra2_var_dict=None):
     lon.standard_name = 'longitude'
     lon[:] = nc_reference.variables['lon'][:]
 
+    least_digit = merra2_var_dict.get('least_significant_digit', None)
     var1 = nc1.createVariable(var_name, 'f4', ('lat', 'lon'), zlib=True,
-                              fill_value=deff4)
+                              fill_value=deff4,
+                              least_significant_digit=least_digit)
     # 3.1. Units
     var1.units = var_ref.units
     # 3.2. Long Name
@@ -191,7 +200,7 @@ def subdaily_download(merra2_server, dataset_esdt, merra2_collection,
     merra_cmd = merra_cmd.format(add_output_dir, merra2_server)
     data_path = ("MERRA2/{4}/{0}/{1}/"
                  "MERRA2_{3}.{5}.{0}{1}{2}.nc4")
-    for yyyy in range(initial_year, final_year+1):
+    for yyyy in range(initial_year, final_year + 1):
         if yyyy < 1992:
             merra_stream = '100'
         elif yyyy < 2001:
@@ -208,7 +217,7 @@ def subdaily_download(merra2_server, dataset_esdt, merra2_collection,
             mf = final_month
         else:
             mf = 12
-        for mm in range(mi, mf+1):
+        for mm in range(mi, mf + 1):
             if (yyyy == initial_year) and (mm == mi):
                 di = initial_day
             else:
@@ -218,7 +227,7 @@ def subdaily_download(merra2_server, dataset_esdt, merra2_collection,
             else:
                 mrange = monthrange(yyyy, mm)
                 df = mrange[1]
-            for dd in range(di, df+1):
+            for dd in range(di, df + 1):
                 cdp = data_path.format(str(yyyy), str(mm).zfill(2),
                                        str(dd).zfill(2), merra_stream,
                                        dataset_esdt, merra2_collection)
@@ -262,11 +271,11 @@ def subdaily_netcdf(path_data, output_file, var_name, initial_year,
             relevant_files.append(nc_file)
             nc = netCDF4.Dataset(nc_file, 'r')
             ncvar = nc.variables[merra2_var_dict['merra_name']]
-            nmb += ncvar.size*4/(1024.*1024.)
+            nmb += (ncvar.size * 4) / (1024. * 1024.)
             if nmb > 500:
                 divided_files.append([nc_file])
                 nt_division.append(0)
-                nmb = ncvar.size*4/(1024.*1024.)
+                nmb = (ncvar.size * 4) / (1024. * 1024.)
             else:
                 divided_files[-1].append(nc_file)
             nt_division[-1] += len(nc.dimensions['time'])
@@ -284,12 +293,22 @@ def subdaily_netcdf(path_data, output_file, var_name, initial_year,
     nc1 = netCDF4.Dataset(nc_file, 'w', format='NETCDF4_CLASSIC')
 
     # 2.6.1 Identification of Conventions
-    nc1.Conventions = 'CF-1.6'
+    nc1.Conventions = 'CF-1.7'
 
     # 2.6.2. Description of file contents
     nc1.title = ('Modern-Era Retrospective analysis for Research and '
                  'Applications, Version 2')
-    nc1.history = "%s: Extract variable and merge in time." % (now,)
+    if (len(divided_files) == 1) and (len(divided_files[0]) == 1):
+        nc1.history = ("{0} (pymerra2-{1}): "
+                       "Reformat to CF-1.7 & "
+                       "Extract variable.").format(
+            now, __version__)
+    else:
+        nc1.history = ("{0} (pymerra2-{1}): "
+                       "Reformat to CF-1.7 & "
+                       "Extract variable & "
+                       "Merge in time.").format(
+            now, __version__)
     nc1.institution = nc_reference.Institution
     nc1.source = 'Reanalysis'
     nc1.references = nc_reference.References
@@ -335,14 +354,15 @@ def subdaily_netcdf(path_data, output_file, var_name, initial_year,
     time.calendar = 'gregorian'
 
     if merra2_var_dict['cell_methods']:
-        tbounds = nc1.createVariable('time_bounds', 'f4', ('time', 'nv'))
+        time.bounds = 'time_bnds'
+        tbounds = nc1.createVariable('time_bnds', 'f4', ('time', 'nv'))
 
     # time_vectors = nc1.createVariable('time_vectors', 'i2', ('time', 'ts'),
     #                                   zlib=True)
 
     # 4.3. Vertical (Height or Depth) Coordinate
     if 'lev' in nc_reference.dimensions:
-        level = nc1.createVariable('level', 'i2', ('level',), zlib=True)
+        level = nc1.createVariable('level', 'i4', ('level',), zlib=True)
         level.axis = 'Z'
         level.units = 'Pa'
         level.positive = 'down'
@@ -350,10 +370,10 @@ def subdaily_netcdf(path_data, output_file, var_name, initial_year,
         level.standard_name = 'air_pressure'
         level_ref = nc_reference.variables['lev']
         if level_ref.units == 'hPa':
-            level[:] = np.round(level_ref[:]*100)
+            level[:] = np.round(level_ref[:] * 100)
         else:
             raise NotImplementedError()
-    
+
     # 4.1. Latitude Coordinate
     lat = nc1.createVariable('lat', 'f4', ('lat',))
     lat.axis = 'Y'
@@ -379,8 +399,10 @@ def subdaily_netcdf(path_data, output_file, var_name, initial_year,
         var1_chunksizes = (8, 6, 121, 144)
     else:
         var1_chunksizes = (360, 30, 30)
+    least_digit = merra2_var_dict.get('least_significant_digit', None)
     var1 = nc1.createVariable(var_name, 'f4', var_dims, zlib=True,
-                              chunksizes=var1_chunksizes, fill_value=deff4)
+                              chunksizes=var1_chunksizes, fill_value=deff4,
+                              least_significant_digit=least_digit)
     # 3.1. Units
     # Force kg kg-1 to 1
     if var_ref.units == 'kg kg-1':
@@ -421,29 +443,25 @@ def subdaily_netcdf(path_data, output_file, var_name, initial_year,
                 nctime_1980 = np.round(
                     netCDF4.date2num(ncdatetime, time.units))
             if 'lev' in nc_reference.dimensions:
-                tmp_data[ttmp:ttmp+ncvar.shape[0],:,:,:] = ncvar[:,:,:,:]
+                tmp_data[ttmp:ttmp + ncvar.shape[0],:,:,:] = ncvar[:,:,:,:]
             else:
-                tmp_data[ttmp:ttmp+ncvar.shape[0],:,:] = ncvar[:,:,:]
-            tmp_time[ttmp:ttmp+ncvar.shape[0]] = nctime_1980[:]
+                tmp_data[ttmp:ttmp + ncvar.shape[0],:,:] = ncvar[:,:,:]
+            tmp_time[ttmp:ttmp + ncvar.shape[0]] = nctime_1980[:]
             ttmp += ncvar.shape[0]
             nc.close()
         if 'lev' in nc_reference.dimensions:
-            var1[t:t+tmp_data.shape[0],:,:,:] = tmp_data[:,:,:,:]
+            var1[t:t + tmp_data.shape[0],:,:,:] = tmp_data[:,:,:,:]
         else:
-            var1[t:t+tmp_data.shape[0],:,:] = tmp_data[:,:,:]
-        time[t:t+tmp_data.shape[0]] = tmp_time[:]
+            var1[t:t + tmp_data.shape[0],:,:] = tmp_data[:,:,:]
+        time[t:t + tmp_data.shape[0]] = tmp_time[:]
         if merra2_var_dict['cell_methods']:
-            if tmp_time[1]-tmp_time[0] == 1.0:
-                tbounds[t:t+tmp_data.shape[0],0] = tmp_time[:]-0.5
-                tbounds[t:t+tmp_data.shape[0],1] = tmp_time[:]+0.5
-            elif tmp_time[1]-tmp_time[0] == 3.0:
-                tbounds[t:t+tmp_data.shape[0],0] = tmp_time[:]-1.5
-                tbounds[t:t+tmp_data.shape[0],1] = tmp_time[:]+1.5
+            if tmp_time[1] - tmp_time[0] == 1.0:
+                tbounds[t:t + tmp_data.shape[0],0] = tmp_time[:] - 0.5
+                tbounds[t:t + tmp_data.shape[0],1] = tmp_time[:] + 0.5
+            elif tmp_time[1] - tmp_time[0] == 3.0:
+                tbounds[t:t + tmp_data.shape[0],0] = tmp_time[:] - 1.5
+                tbounds[t:t + tmp_data.shape[0],1] = tmp_time[:] + 1.5
         t += tmp_data.shape[0]
-
-    # Methods to fill time and time_vectors variables:
-    # datetimes = netCDF4.num2date(time[:], time.units, time.calendar)
-    # time_vectors[:,:] = _datetimes_to_time_vectors(datetimes)
 
     nc1.close()
 
@@ -565,11 +583,11 @@ def daily_netcdf(path_data, output_file, var_name, initial_year, final_year,
             relevant_files.append(nc_file)
             nc = netCDF4.Dataset(nc_file, 'r')
             ncvar = nc.variables[merra2_var_dict['merra_name']]
-            nmb += ncvar.size*4/(1024.*1024.)
+            nmb += (ncvar.size * 4) / (1024. * 1024.)
             if nmb > 500:
                 divided_files.append([nc_file])
                 nt_division.append(0)
-                nmb = ncvar.size*4/(1024.*1024.)
+                nmb = (ncvar.size * 4) / (1024. * 1024.)
             else:
                 divided_files[-1].append(nc_file)
             nt_division[-1] += len(nc.dimensions['time'])
@@ -587,12 +605,22 @@ def daily_netcdf(path_data, output_file, var_name, initial_year, final_year,
     nc1 = netCDF4.Dataset(nc_file, 'w', format='NETCDF4_CLASSIC')
 
     # 2.6.1 Identification of Conventions
-    nc1.Conventions = 'CF-1.6'
+    nc1.Conventions = 'CF-1.7'
 
     # 2.6.2. Description of file contents
     nc1.title = ('Modern-Era Retrospective analysis for Research and '
                  'Applications, Version 2')
-    nc1.history = "%s: Extract variable and merge in time." % (now,)
+    if (len(divided_files) == 1) and (len(divided_files[0]) == 1):
+        nc1.history = ("{0} (pymerra2-{1}): "
+                       "Reformat to CF-1.7 & "
+                       "Extract variable.").format(
+            now, __version__)
+    else:
+        nc1.history = ("{0} (pymerra2-{1}): "
+                       "Reformat to CF-1.7 & "
+                       "Extract variable & "
+                       "Merge in time.").format(
+            now, __version__)
     nc1.institution = nc_reference.Institution
     nc1.source = 'Reanalysis'
     nc1.references = nc_reference.References
@@ -634,10 +662,8 @@ def daily_netcdf(path_data, output_file, var_name, initial_year, final_year,
     time.calendar = 'gregorian'
 
     if merra2_var_dict['cell_methods']:
-        tbounds = nc1.createVariable('time_bounds', 'i4', ('time', 'nv'))
-
-    #time_vectors = nc1.createVariable('time_vectors', 'i2', ('time', 'ts'),
-    #                                  zlib=True)
+        time.bounds = 'time_bnds'
+        tbounds = nc1.createVariable('time_bnds', 'i4', ('time', 'nv'))
 
     # 4.3. Vertical (Height or Depth) Coordinate
     # level = nc1.createVariable('level','f4',('level',),zlib=True)
@@ -663,9 +689,11 @@ def daily_netcdf(path_data, output_file, var_name, initial_year, final_year,
     lon.standard_name = 'longitude'
     lon[:] = nc_reference.variables['lon'][:]
 
+    least_digit = merra2_var_dict.get('least_significant_digit', None)
     var1 = nc1.createVariable(var_name, 'f4', ('time', 'lat', 'lon'),
                               zlib=True, chunksizes=(30, 120, 120),
-                              fill_value=deff4)
+                              fill_value=deff4,
+                              least_significant_digit=least_digit)
     # 3.1. Units
     var1.units = var_ref.units
     # 3.2. Long Name
@@ -691,20 +719,16 @@ def daily_netcdf(path_data, output_file, var_name, initial_year, final_year,
             nctime = nc.variables['time']
             ncdatetime = netCDF4.num2date(nctime[:], nctime.units)
             nctime_1980 = np.round(netCDF4.date2num(ncdatetime, time.units))
-            tmp_data[ttmp:ttmp+ncvar.shape[0],:,:] = ncvar[:,:,:]
-            tmp_time[ttmp:ttmp+ncvar.shape[0]] = nctime_1980[:]
+            tmp_data[ttmp:ttmp + ncvar.shape[0],:,:] = ncvar[:,:,:]
+            tmp_time[ttmp:ttmp + ncvar.shape[0]] = nctime_1980[:]
             ttmp += ncvar.shape[0]
             nc.close()
-        var1[t:t+tmp_data.shape[0],:,:] = tmp_data[:,:,:]
-        time[t:t+tmp_data.shape[0]] = tmp_time[:]
+        var1[t:t + tmp_data.shape[0],:,:] = tmp_data[:,:,:]
+        time[t:t + tmp_data.shape[0]] = tmp_time[:]
         if merra2_var_dict['cell_methods']:
-            tbounds[t:t+tmp_data.shape[0],0] = tmp_time[:]-12
-            tbounds[t:t+tmp_data.shape[0],1] = tmp_time[:]+12
+            tbounds[t:t + tmp_data.shape[0],0] = tmp_time[:] - 12
+            tbounds[t:t + tmp_data.shape[0],1] = tmp_time[:] + 12
         t += tmp_data.shape[0]
-
-    # Methods to fill time and time_vectors variables:
-    #datetimes = netCDF4.num2date(time[:], time.units, time.calendar)
-    #time_vectors[:,:] = _datetimes_to_time_vectors(datetimes)
 
     nc1.close()
 
