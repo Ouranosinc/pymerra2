@@ -5,6 +5,8 @@ import merra2
 # These variables names are user choices, their merra-2 equivalent are
 # specified below or in the default merra2_variables.py
 var_names = ['pr', 'prsn', 'prc']
+# Frequency of the given variables (1hr, 3hr, 6hr)
+time_frequency = '1hr'
 delete_temp_dir = True
 download_dir = '/path/to/output'
 merra2_server = 'https://goldsmr4.gesdisc.eosdis.nasa.gov/data/'
@@ -40,4 +42,5 @@ for yyyy in range(1980, 2017):
             merra2_server, var_names, merra2_var_dicts=merra2_var_dicts,
             initial_year=yyyy, final_year=yyyy, initial_month=mm,
             final_month=mm, initial_day=1, final_day=None,
-            output_dir=download_dir, delete_temp_dir=delete_temp_dir)
+            output_dir=download_dir, delete_temp_dir=delete_temp_dir,
+            time_frequency=time_frequency)

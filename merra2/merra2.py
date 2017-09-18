@@ -13,7 +13,7 @@ from merra2_variables import merra2_vars
 
 # Version, should be move to an __init__.py file if ever creating
 # a package out of this...
-__version__ = '0.1.1'
+__version__ = '0.1.2'
 
 # Aliases for default fill values
 defi2 = netCDF4.default_fillvals['i2']
@@ -106,15 +106,26 @@ def fixed_netcdf(path_data, output_file, var_name, merra2_var_dict=None):
     # 2.6.2. Description of file contents
     nc1.title = ('Modern-Era Retrospective analysis for Research and '
                  'Applications, Version 2')
-    nc1.history = ("{0} (pymerra2-{1}): "
+    nc1.history = ("{0}\n{1} (pymerra2-{2}): "
                    "Reformat to CF-1.7 & "
                    "Extract variable.").format(
-        now, __version__)
+        nc_reference.History, now, __version__)
     nc1.institution = nc_reference.Institution
     nc1.source = 'Reanalysis'
     nc1.references = nc_reference.References
+    # Using lower case c for conventions because lower() is used below...
+    attr_overwrite = ['conventions', 'title', 'institution', 'source',
+                      'references']
+    ordered_attr = {}
     for attr in nc_reference.ncattrs():
-        setattr(nc1, 'original_file_' + attr, getattr(nc_reference, attr))
+        if attr == 'History':
+            continue
+        if attr.lower() in attr_overwrite:
+            ordered_attr['original_file_' + attr] = getattr(nc_reference, attr)
+        else:
+            ordered_attr[attr] = getattr(nc_reference, attr)
+    for attr in sorted(ordered_attr.keys(), key=lambda v: v.lower()):
+        setattr(nc1, attr, ordered_attr[attr])
 
     # Create netCDF dimensions
     nc1.createDimension('lat', len(nc_reference.dimensions['lat']))
@@ -299,21 +310,32 @@ def subdaily_netcdf(path_data, output_file, var_name, initial_year,
     nc1.title = ('Modern-Era Retrospective analysis for Research and '
                  'Applications, Version 2')
     if (len(divided_files) == 1) and (len(divided_files[0]) == 1):
-        nc1.history = ("{0} (pymerra2-{1}): "
+        nc1.history = ("{0}\n{1} (pymerra2-{2}): "
                        "Reformat to CF-1.7 & "
                        "Extract variable.").format(
-            now, __version__)
+            nc_reference.History, now, __version__)
     else:
-        nc1.history = ("{0} (pymerra2-{1}): "
+        nc1.history = ("{0}\n{1} (pymerra2-{2}): "
                        "Reformat to CF-1.7 & "
                        "Extract variable & "
                        "Merge in time.").format(
-            now, __version__)
+            nc_reference.History, now, __version__)
     nc1.institution = nc_reference.Institution
     nc1.source = 'Reanalysis'
     nc1.references = nc_reference.References
+    # Using lower case c for conventions because lower() is used below...
+    attr_overwrite = ['conventions', 'title', 'institution', 'source',
+                      'references']
+    ordered_attr = {}
     for attr in nc_reference.ncattrs():
-        setattr(nc1, 'first_file_' + attr, getattr(nc_reference, attr))
+        if attr == 'History':
+            continue
+        if attr.lower() in attr_overwrite:
+            ordered_attr['original_file_' + attr] = getattr(nc_reference, attr)
+        else:
+            ordered_attr[attr] = getattr(nc_reference, attr)
+    for attr in sorted(ordered_attr.keys(), key=lambda v: v.lower()):
+        setattr(nc1, attr, ordered_attr[attr])
 
     # Create netCDF dimensions
     nc1.createDimension('time', nt)
@@ -470,7 +492,8 @@ def subdaily_download_and_convert(merra2_server, var_names, initial_year,
                                   final_year, initial_month=1, final_month=12,
                                   initial_day=1, final_day=None,
                                   merra2_var_dicts=None, output_dir=None,
-                                  delete_temp_dir=True, verbose=True):
+                                  delete_temp_dir=True, verbose=True,
+                                  time_frequency='1hr'):
     """MERRA2 subdaily download and conversion.
 
     Parameters
@@ -518,19 +541,21 @@ def subdaily_download_and_convert(merra2_server, var_names, initial_year,
         # Name the output file
         if (initial_year == final_year) and (initial_month == final_month):
             if initial_day == final_day:
-                file_name_str = "{0}_1hr_merra2_reanalysis_{1}{2}{3}.nc"
+                file_name_str = "{0}_{1}_merra2_reanalysis_{2}{3}{4}.nc"
                 out_file_name = file_name_str.format(
-                    var_name, str(initial_year), str(initial_month).zfill(2),
-                    str(initial_day).zfill(2))
+                    var_name, time_frequency, str(initial_year),
+                    str(initial_month).zfill(2), str(initial_day).zfill(2))
             else:
-                file_name_str = "{0}_1hr_merra2_reanalysis_{1}{2}.nc"
+                file_name_str = "{0}_{1}_merra2_reanalysis_{2}{3}.nc"
                 out_file_name = file_name_str.format(
-                    var_name, str(initial_year), str(initial_month).zfill(2))
+                    var_name, time_frequency, str(initial_year),
+                    str(initial_month).zfill(2))
         else:
-            file_name_str = "{0}_1hr_merra2_reanalysis_{1}{2}-{3}{4}.nc"
+            file_name_str = "{0}_{1}_merra2_reanalysis_{2}{3}-{4}{5}.nc"
             out_file_name = file_name_str.format(
-                var_name, str(initial_year), str(initial_month).zfill(2),
-                str(final_year), str(final_month).zfill(2))
+                var_name, time_frequency, str(initial_year),
+                str(initial_month).zfill(2), str(final_year),
+                str(final_month).zfill(2))
         out_file = os.path.join(output_dir, out_file_name)
         # Extract variable
         subdaily_netcdf(
@@ -611,21 +636,32 @@ def daily_netcdf(path_data, output_file, var_name, initial_year, final_year,
     nc1.title = ('Modern-Era Retrospective analysis for Research and '
                  'Applications, Version 2')
     if (len(divided_files) == 1) and (len(divided_files[0]) == 1):
-        nc1.history = ("{0} (pymerra2-{1}): "
+        nc1.history = ("{0}\n{1} (pymerra2-{2}): "
                        "Reformat to CF-1.7 & "
                        "Extract variable.").format(
-            now, __version__)
+            nc_reference.History, now, __version__)
     else:
-        nc1.history = ("{0} (pymerra2-{1}): "
+        nc1.history = ("{0}\n{1} (pymerra2-{2}): "
                        "Reformat to CF-1.7 & "
                        "Extract variable & "
                        "Merge in time.").format(
-            now, __version__)
+            nc_reference.History, now, __version__)
     nc1.institution = nc_reference.Institution
     nc1.source = 'Reanalysis'
     nc1.references = nc_reference.References
+    # Using lower case c for conventions because lower() is used below...
+    attr_overwrite = ['conventions', 'title', 'institution', 'source',
+                      'references']
+    ordered_attr = {}
     for attr in nc_reference.ncattrs():
-        setattr(nc1, 'first_file_' + attr, getattr(nc_reference, attr))
+        if attr == 'History':
+            continue
+        if attr.lower() in attr_overwrite:
+            ordered_attr['original_file_' + attr] = getattr(nc_reference, attr)
+        else:
+            ordered_attr[attr] = getattr(nc_reference, attr)
+    for attr in sorted(ordered_attr.keys(), key=lambda v: v.lower()):
+        setattr(nc1, attr, ordered_attr[attr])
 
     # Create netCDF dimensions
     nc1.createDimension('time', nt)
