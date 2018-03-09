@@ -59,6 +59,12 @@ merra2_vars = {
         'merra_name': 'PRECSNO',
         'standard_name': 'snowfall_flux',
         'cell_methods': 'time: mean'},
+    'rls': {
+        'esdt_dir': 'M2T1NXRAD.5.12.4',
+        'collection': 'tavg1_2d_rad_Nx',
+        'merra_name': 'LWGNT',
+        'standard_name': 'surface_net_downward_longwave_flux',
+        'cell_methods': 'time: mean'},
     'rsds': {
         'esdt_dir': 'M2T1NXRAD.5.12.4',
         'collection': 'tavg1_2d_rad_Nx',
