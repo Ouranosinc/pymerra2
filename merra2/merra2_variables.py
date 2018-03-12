@@ -10,6 +10,13 @@ merra2_vars = {
         'standard_name': 'dew_point_temperature',
         'cell_methods': 'time: mean',
         'least_significant_digit': 3},
+    'evspsbl': {
+        'esdt_dir': 'M2T1NXFLX.5.12.4',
+        'collection': 'tavg1_2d_flx_Nx',
+        'merra_name': 'EVAP',
+        'standard_name': 'water_evaporation_flux',
+        'cell_methods': 'time: mean',
+        'least_significant_digit': 12},
     'hur': {
         'esdt_dir': 'M2T3NPCLD.5.12.4',
         'collection': 'tavg3_3d_cld_Np',
@@ -35,11 +42,17 @@ merra2_vars = {
         'merra_name': 'PRECTOT',
         'standard_name': 'precipitation_flux',
         'cell_methods': 'time: mean'},
-    'ps': {
-        'esdt_dir': 'M2T1NXSLV.5.12.4',
-        'collection': 'tavg1_2d_slv_Nx',
-        'merra_name': 'PS',
-        'standard_name': 'surface_air_pressure',
+    'prc': {
+        'esdt_dir': 'M2T1NXFLX.5.12.4',
+        'collection': 'tavg1_2d_flx_Nx',
+        'merra_name': 'PRECCON',
+        'standard_name': 'convective_precipitation_flux',
+        'cell_methods': 'time: mean'},
+    'prbc': {
+	'esdt_dir': 'M2T1NXFLX.5.12.4',
+        'collection': 'tavg1_2d_flx_Nx',
+        'merra_name': 'PRECTOTCORR',
+        'standard_name': 'precipitation_flux_bias_corr',
         'cell_methods': 'time: mean'},
     'prmax': {
         'esdt_dir': 'M2SDNXSLV.5.12.4',
@@ -47,17 +60,17 @@ merra2_vars = {
         'merra_name': 'TPRECMAX',
         'standard_name': 'precipitation_flux',
         'cell_methods': 'time: max'},
-    'prc': {
-        'esdt_dir': 'M2T1NXFLX.5.12.4',
-        'collection': 'tavg1_2d_flx_Nx',
-        'merra_name': 'PRECCON',
-        'standard_name': 'convective_precipitation_flux',
-        'cell_methods': 'time: mean'},
     'prsn': {
         'esdt_dir': 'M2T1NXFLX.5.12.4',
         'collection': 'tavg1_2d_flx_Nx',
         'merra_name': 'PRECSNO',
         'standard_name': 'snowfall_flux',
+        'cell_methods': 'time: mean'},
+    'ps': {
+        'esdt_dir': 'M2T1NXSLV.5.12.4',
+        'collection': 'tavg1_2d_slv_Nx',
+        'merra_name': 'PS',
+        'standard_name': 'surface_air_pressure',
         'cell_methods': 'time: mean'},
     'rls': {
         'esdt_dir': 'M2T1NXRAD.5.12.4',
