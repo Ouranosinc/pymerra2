@@ -27,8 +27,7 @@ var_info = {'cell_methods': None,
             'merra_name': 'T2M',
             'standard_name': 'air_temperature'}
 
-output_file_template = '{0}_{1}_merra2_reanalysis_{0}{1}.nc'.format(
-    var_name, freq)
+output_file_template = '{0}_{1}_merra2_reanalysis_{2}{3}.nc'
 
 for yyyy in range(year_ini, year_fin + 1):
     for mm in range(1, 13):
@@ -40,7 +39,8 @@ for yyyy in range(year_ini, year_fin + 1):
             renamed_file = os.path.basename(nc_file).replace('.SUB.', '.')
             shutil.copy(nc_file, os.path.join(path_tmp, renamed_file))
 
-        output_file = output_file_template.format(str(yyyy), str(mm).zfill(2))
+        output_file = output_file_template.format(
+            var_name, freq, str(yyyy), str(mm).zfill(2))
         merra2.subdaily_netcdf(
             path_tmp, os.path.join(path_output, output_file), var_name,
             yyyy, yyyy, var_info, True)
