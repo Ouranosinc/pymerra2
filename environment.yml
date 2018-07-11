@@ -1,0 +1,6 @@
+name: pymerra2
++channels:
++- defaults
++dependencies:
++- numpy
++- netCDF4

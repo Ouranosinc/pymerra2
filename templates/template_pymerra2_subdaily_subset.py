@@ -1,9 +1,9 @@
+import glob
 import os
 import shutil
-import glob
 import tempfile
 
-import merra2
+from pymerra2 import download
 
 # This assumes that for each year, every month is available and that the
 # subset files downloaded have the .SUB.nc4 suffix and are otherwise named
@@ -19,7 +19,7 @@ year_fin = 2017
 var_name = 'tas'  # This is not the merra2 variable name, see var_info below.
 freq = '1hr'
 
-# Look at merra2_variables.py for examples of that this should be:
+# Look at pymerra2_variables.py for examples of that this should be:
 var_info = {'cell_methods': None,
             'collection': 'inst1_2d_asm_Nx',
             'esdt_dir': None,  # Not required here...
@@ -41,7 +41,7 @@ for yyyy in range(year_ini, year_fin + 1):
 
         output_file = output_file_template.format(
             var_name, freq, str(yyyy), str(mm).zfill(2))
-        merra2.subdaily_netcdf(
+        download.subdaily_netcdf(
             path_tmp, os.path.join(path_output, output_file), var_name,
             yyyy, yyyy, var_info, True)
 

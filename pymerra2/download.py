@@ -1,19 +1,16 @@
-import os
-import glob
 import datetime
-from calendar import monthrange
-import tempfile
+import glob
+import os
 import shutil
+import tempfile
+from calendar import monthrange
 
+import netCDF4
 import numpy as np
 import numpy.ma as ma
-import netCDF4
 
-from merra2_variables import merra2_vars
-
-# Version, should be move to an __init__.py file if ever creating
-# a package out of this...
-__version__ = '0.1.2'
+from pymerra2 import __version__
+from pymerra2.variables import var_list
 
 # Aliases for default fill values
 defi2 = netCDF4.default_fillvals['i2']
@@ -23,6 +20,14 @@ deff4 = netCDF4.default_fillvals['f4']
 
 class NetCDFError(Exception):
     pass
+
+
+# TODO: Integrate more opportunities for tests and simplify function calls
+# TODO: Create a class for data requests that can be passed to functions rather than script calls.
+# TODO: Refactor keywords and variables to remove ambiguity/confusion
+# TODO: Split functions between downloads and subsets
+# TODO: Integrate data downloads methods for similar data access types (Not just MERRA/MERRA2)
+# TODO: Write docstrings for ALL methods and classes from now on
 
 
 def _time_vectors_int(time_vectors, force=False, raise_exception=False,
@@ -85,7 +90,7 @@ def fixed_netcdf(path_data, output_file, var_name, merra2_var_dict=None):
     """
 
     if not merra2_var_dict:
-        merra2_var_dict = merra2_vars[var_name]
+        merra2_var_dict = var_list[var_name]
 
     search_str = "*{0}*.nc4".format(merra2_var_dict['collection'])
     nc_files = glob.glob(os.path.join(path_data, search_str))
@@ -131,6 +136,7 @@ def fixed_netcdf(path_data, output_file, var_name, merra2_var_dict=None):
     nc1.createDimension('lat', len(nc_reference.dimensions['lat']))
     nc1.createDimension('lon', len(nc_reference.dimensions['lon']))
 
+    # TODO: Remove these unused comments from source code to somewhere else?
     # Create netCDF variables
     # Compression parameters include:
     # zlib=True,complevel=9,least_significant_digit=1
@@ -171,7 +177,7 @@ def fixed_netcdf(path_data, output_file, var_name, merra2_var_dict=None):
     # 3.3. Standard Name
     var1.standard_name = merra2_var_dict['standard_name']
     var_ref = nc_reference.variables[merra2_var_dict['merra_name']]
-    var1[:,:] = var_ref[0,:,:]
+    var1[:, :] = var_ref[0, :, :]
 
     nc_reference.close()
     nc1.close()
@@ -206,6 +212,8 @@ def subdaily_download(merra2_server, dataset_esdt, merra2_collection,
         add_output_dir = ''
     else:
         add_output_dir = "--directory-prefix={0} ".format(output_directory)
+
+    # TODO: replace this system call with a python wget approach
     merra_cmd = ("wget -c {0}--load-cookies ~/.urs_cookies "
                  "--save-cookies ~/.urs_cookies --keep-session-cookies {1}")
     merra_cmd = merra_cmd.format(add_output_dir, merra2_server)
@@ -242,6 +250,7 @@ def subdaily_download(merra2_server, dataset_esdt, merra2_collection,
                 cdp = data_path.format(str(yyyy), str(mm).zfill(2),
                                        str(dd).zfill(2), merra_stream,
                                        dataset_esdt, merra2_collection)
+                # TODO: Get rid of these system call and implement error handling earlier
                 os.system(merra_cmd + cdp)
 
 
@@ -256,7 +265,7 @@ def subdaily_netcdf(path_data, output_file, var_name, initial_year,
     var_name : str
     initial_year : int
     final_year : int
-    merra2_var_dict : dict
+    merra2_var_dict : dict or None
         Dictionary containing the following keys:
         esdt_dir, collection, merra_name, standard_name,
         see the Bosilovich paper for details.
@@ -265,7 +274,7 @@ def subdaily_netcdf(path_data, output_file, var_name, initial_year,
     """
 
     if not merra2_var_dict:
-        merra2_var_dict = merra2_vars[var_name]
+        merra2_var_dict = var_list[var_name]
 
     search_str = "*{0}*.nc4".format(merra2_var_dict['collection'])
     nc_files = glob.glob(os.path.join(path_data, search_str))
@@ -323,6 +332,7 @@ def subdaily_netcdf(path_data, output_file, var_name, initial_year,
     nc1.institution = nc_reference.Institution
     nc1.source = 'Reanalysis'
     nc1.references = nc_reference.References
+
     # Using lower case c for conventions because lower() is used below...
     attr_overwrite = ['conventions', 'title', 'institution', 'source',
                       'references']
@@ -347,6 +357,7 @@ def subdaily_netcdf(path_data, output_file, var_name, initial_year,
     if merra2_var_dict['cell_methods']:
         nc1.createDimension('nv', 2)
 
+    # TODO: Remove these unused comments from source code to somewhere else?
     # Create netCDF variables
     # Compression parameters include:
     # zlib=True,complevel=9,least_significant_digit=1
@@ -379,6 +390,7 @@ def subdaily_netcdf(path_data, output_file, var_name, initial_year,
         time.bounds = 'time_bnds'
         tbounds = nc1.createVariable('time_bnds', 'f4', ('time', 'nv'))
 
+    # TODO: Remove these unused comments from source code to somewhere else?
     # time_vectors = nc1.createVariable('time_vectors', 'i2', ('time', 'ts'),
     #                                   zlib=True)
 
@@ -465,24 +477,24 @@ def subdaily_netcdf(path_data, output_file, var_name, initial_year,
                 nctime_1980 = np.round(
                     netCDF4.date2num(ncdatetime, time.units))
             if 'lev' in nc_reference.dimensions:
-                tmp_data[ttmp:ttmp + ncvar.shape[0],:,:,:] = ncvar[:,:,:,:]
+                tmp_data[ttmp:ttmp + ncvar.shape[0], :, :, :] = ncvar[:, :, :, :]
             else:
-                tmp_data[ttmp:ttmp + ncvar.shape[0],:,:] = ncvar[:,:,:]
+                tmp_data[ttmp:ttmp + ncvar.shape[0], :, :] = ncvar[:, :, ]
             tmp_time[ttmp:ttmp + ncvar.shape[0]] = nctime_1980[:]
             ttmp += ncvar.shape[0]
             nc.close()
         if 'lev' in nc_reference.dimensions:
-            var1[t:t + tmp_data.shape[0],:,:,:] = tmp_data[:,:,:,:]
+            var1[t:t + tmp_data.shape[0], :, :, :] = tmp_data[:, :, :, :]
         else:
-            var1[t:t + tmp_data.shape[0],:,:] = tmp_data[:,:,:]
+            var1[t:t + tmp_data.shape[0], :, :] = tmp_data[:, :, :]
         time[t:t + tmp_data.shape[0]] = tmp_time[:]
         if merra2_var_dict['cell_methods']:
             if tmp_time[1] - tmp_time[0] == 1.0:
-                tbounds[t:t + tmp_data.shape[0],0] = tmp_time[:] - 0.5
-                tbounds[t:t + tmp_data.shape[0],1] = tmp_time[:] + 0.5
+                tbounds[t:t + tmp_data.shape[0], 0] = tmp_time[:] - 0.5
+                tbounds[t:t + tmp_data.shape[0], 1] = tmp_time[:] + 0.5
             elif tmp_time[1] - tmp_time[0] == 3.0:
-                tbounds[t:t + tmp_data.shape[0],0] = tmp_time[:] - 1.5
-                tbounds[t:t + tmp_data.shape[0],1] = tmp_time[:] + 1.5
+                tbounds[t:t + tmp_data.shape[0], 0] = tmp_time[:] - 1.5
+                tbounds[t:t + tmp_data.shape[0], 1] = tmp_time[:] + 1.5
         t += tmp_data.shape[0]
 
     nc1.close()
@@ -502,7 +514,7 @@ def subdaily_download_and_convert(merra2_server, var_names, initial_year,
         Must contain trailing slash.
         e.g. https://goldsmr4.gesdisc.eosdis.nasa.gov/data/
     var_names : list of string
-        Variable short names, must be defined in merra2_variables.py
+        Variable short names, must be defined in pymerra2_variables.py
         if merra2_var_dict is not provided. If more than one variable,
         they are assumed to have the same original files and those will only
         be downloaded once.
@@ -512,13 +524,14 @@ def subdaily_download_and_convert(merra2_server, var_names, initial_year,
     final_month : int
     initial_day : int
     final_day : int
-    merra2_var_dicts : list of dict
+    merra2_var_dicts : list of dict or None
         Dictionary containing the following keys:
         esdt_dir, collection, merra_name, standard_name,
         see the Bosilovich paper for details. Same order as var_names.
     output_dir : string
     delete_temp_dir : bool
     verbose : bool
+    time_frequency : string
 
     """
 
@@ -527,7 +540,7 @@ def subdaily_download_and_convert(merra2_server, var_names, initial_year,
     temp_dir_download = tempfile.mkdtemp(dir=output_dir)
     for i, var_name in enumerate(var_names):
         if not merra2_var_dicts:
-            merra2_var_dict = merra2_vars[var_name]
+            merra2_var_dict = var_list[var_name]
         else:
             merra2_var_dict = merra2_var_dicts[i]
         # Download subdaily files
@@ -576,7 +589,7 @@ def daily_netcdf(path_data, output_file, var_name, initial_year, final_year,
     var_name : str
     initial_year : int
     final_year : int
-    merra2_var_dict : dict
+    merra2_var_dict : dict or None
         Dictionary containing the following keys:
         esdt_dir, collection, merra_name, standard_name,
         see the Bosilovich paper for details.
@@ -591,7 +604,7 @@ def daily_netcdf(path_data, output_file, var_name, initial_year, final_year,
     """
 
     if not merra2_var_dict:
-        merra2_var_dict = merra2_vars[var_name]
+        merra2_var_dict = var_list[var_name]
 
     search_str = "*{0}*.nc4".format(merra2_var_dict['collection'])
     nc_files = glob.glob(os.path.join(path_data, search_str))
@@ -649,6 +662,7 @@ def daily_netcdf(path_data, output_file, var_name, initial_year, final_year,
     nc1.institution = nc_reference.Institution
     nc1.source = 'Reanalysis'
     nc1.references = nc_reference.References
+
     # Using lower case c for conventions because lower() is used below...
     attr_overwrite = ['conventions', 'title', 'institution', 'source',
                       'references']
@@ -672,6 +686,7 @@ def daily_netcdf(path_data, output_file, var_name, initial_year, final_year,
     if merra2_var_dict['cell_methods']:
         nc1.createDimension('nv', 2)
 
+    # TODO: Remove these unused comments from source code to somewhere else?
     # Create netCDF variables
     # Compression parameters include:
     # zlib=True,complevel=9,least_significant_digit=1
@@ -701,6 +716,7 @@ def daily_netcdf(path_data, output_file, var_name, initial_year, final_year,
         time.bounds = 'time_bnds'
         tbounds = nc1.createVariable('time_bnds', 'i4', ('time', 'nv'))
 
+    # TODO: Remove these unused comments from source code to somewhere else?
     # 4.3. Vertical (Height or Depth) Coordinate
     # level = nc1.createVariable('level','f4',('level',),zlib=True)
     # level.axis = 'Z'
@@ -755,15 +771,15 @@ def daily_netcdf(path_data, output_file, var_name, initial_year, final_year,
             nctime = nc.variables['time']
             ncdatetime = netCDF4.num2date(nctime[:], nctime.units)
             nctime_1980 = np.round(netCDF4.date2num(ncdatetime, time.units))
-            tmp_data[ttmp:ttmp + ncvar.shape[0],:,:] = ncvar[:,:,:]
+            tmp_data[ttmp:ttmp + ncvar.shape[0], :, :] = ncvar[:, :, :]
             tmp_time[ttmp:ttmp + ncvar.shape[0]] = nctime_1980[:]
             ttmp += ncvar.shape[0]
             nc.close()
-        var1[t:t + tmp_data.shape[0],:,:] = tmp_data[:,:,:]
+        var1[t:t + tmp_data.shape[0], :, :] = tmp_data[:, :, :]
         time[t:t + tmp_data.shape[0]] = tmp_time[:]
         if merra2_var_dict['cell_methods']:
-            tbounds[t:t + tmp_data.shape[0],0] = tmp_time[:] - 12
-            tbounds[t:t + tmp_data.shape[0],1] = tmp_time[:] + 12
+            tbounds[t:t + tmp_data.shape[0], 0] = tmp_time[:] - 12
+            tbounds[t:t + tmp_data.shape[0], 1] = tmp_time[:] + 12
         t += tmp_data.shape[0]
 
     nc1.close()
@@ -782,7 +798,7 @@ def daily_download_and_convert(merra2_server, var_names, initial_year,
         Must contain trailing slash.
         e.g. https://goldsmr4.gesdisc.eosdis.nasa.gov/data/
     var_names : list of string
-        Variable short names, must be defined in merra2_variables.py
+        Variable short names, must be defined in pymerra2_variables.py
         if merra2_var_dict is not provided. If more than one variable,
         they are assumed to have the same original files and those will only
         be downloaded once.
@@ -791,8 +807,8 @@ def daily_download_and_convert(merra2_server, var_names, initial_year,
     initial_month : int
     final_month : int
     initial_day : int
-    final_day : int
-    merra2_var_dicts : list of dict
+    final_day : int or None
+    merra2_var_dicts : list of dict or None
         Dictionary containing the following keys:
         esdt_dir, collection, merra_name, standard_name,
         see the Bosilovich paper for details. Same order as var_names.
@@ -812,7 +828,7 @@ def daily_download_and_convert(merra2_server, var_names, initial_year,
     temp_dir_download = tempfile.mkdtemp(dir=output_dir)
     for i, var_name in enumerate(var_names):
         if not merra2_var_dicts:
-            merra2_var_dict = merra2_vars[var_name]
+            merra2_var_dict = var_list[var_name]
         else:
             merra2_var_dict = merra2_var_dicts[i]
         # Download subdaily files
@@ -824,7 +840,7 @@ def daily_download_and_convert(merra2_server, var_names, initial_year,
                 initial_day=initial_day, final_day=final_day,
                 output_directory=temp_dir_download)
         # Name the output file
-        if (initial_year == final_year):
+        if initial_year == final_year:
             file_name_str = "{0}_day_merra2_reanalysis_{1}.nc"
             out_file_name = file_name_str.format(var_name, str(initial_year))
         else:

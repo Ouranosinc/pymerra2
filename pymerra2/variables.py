@@ -2,7 +2,7 @@
 # https://goldsmr4.gesdisc.eosdis.nasa.gov/data/
 # https://goldsmr5.sci.gsfc.nasa.gov/data/
 
-merra2_vars = {
+var_list = {
     'dewpt': {
         'esdt_dir': 'M2T1NXSLV.5.12.4',
         'collection': 'tavg1_2d_slv_Nx',
@@ -49,7 +49,7 @@ merra2_vars = {
         'standard_name': 'convective_precipitation_flux',
         'cell_methods': 'time: mean'},
     'prbc': {
-	'esdt_dir': 'M2T1NXFLX.5.12.4',
+        'esdt_dir': 'M2T1NXFLX.5.12.4',
         'collection': 'tavg1_2d_flx_Nx',
         'merra_name': 'PRECTOTCORR',
         'standard_name': 'precipitation_flux_bias_corr',
@@ -154,4 +154,5 @@ merra2_vars = {
         'merra_name': 'V10M',
         'standard_name': 'northward_wind',
         'cell_methods': None,
-        'least_significant_digit': 3}}
+        'least_significant_digit': 3}
+}
