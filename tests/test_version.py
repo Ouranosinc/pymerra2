@@ -1,17 +1,15 @@
-import pymerra2 as pm2
+import pymerra2
 
 
-def test_version_definition():
-    version = pm2.__version__
-    assert version >= 0.2
+class TestPyMerra2:
 
-def test_modules():
-    pass
+    def test_version_definition(self):
+        version = pymerra2.__version__
+        assert version >= 0.2
 
+    def test_variables(self):
+        assert isinstance(pymerra2.variables.var_list, dict)
 
-def test_variables():
-    assert type(pm2.variables.var_list) == dict
-
-
-if __name__ == '__main__':
-    pass
+    def test_variable_keys(self):
+        for i in pymerra2.variables.var_list:
+            assert {"esdt_dir", "collection", "merra_name"}.issubset(list(pymerra2.variables.var_list[i].keys()))

@@ -1,22 +1,26 @@
-from __future__ import print_function
-
 import codecs
 import os
 
 from setuptools import setup, find_packages
 
 here = os.path.abspath(os.path.dirname(__file__))
-about = {}
+about = dict(
+    __version__=0.3,
+    __title__='pymerra2',
+    __description__='A tool for downloading and repackaging NASA MERRA-2 Data',
+    __url__='https://github.com/Ouranosinc/pymerra2',
+    __author__='Trevor James Smith',
+    __author_email__='smith.trevorj@ouranos.ca',
+    __license__='Apache Software License 2.0',
+    __copyright__='Copyright 2018 Ouranos Inc.'
+)
 
 with codecs.open("README.md", "r") as fh:
     long_description = fh.read()
 
-with codecs.open(os.path.join(here, 'pymerra2', '__init__.py'), 'r', 'utf-8') as f:
-    exec(f.read(), about)
-
 INSTALL_REQUIRES = [line.strip() for line in open('requirements.txt')]
 
-KEYWORDS = "nasa merra2 netcdf climate forecast"
+KEYWORDS = "nasa merra2 netcdf climate forecast reanalysis"
 
 setup(
     # -- meta information --------------------------------------------------
@@ -34,23 +38,17 @@ setup(
         "License :: OSI Approved :: Apache Software License",
         "Operating System :: OS Independent",
         "Programming Language :: Python",
-        "Programming Language :: Python :: 2",
-        "Programming Language :: Python :: 2.6"
-        "Programming Language :: Python :: 2.7",
         "Programming Language :: Python :: 3",
         "Programming Language :: Python :: 3.4",
         "Programming Language :: Python :: 3.5",
         "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
         "Topic :: Scientific/Engineering :: Atmospheric Science",
+        "Topic ::Utilities",
     ],
     keywords=KEYWORDS,
-
-    # -- Package structure -------------------------------------------------
-
     packages=find_packages(exclude=['tests', 'templates']),
     include_package_data=None,
-    python_requires='>=2.6, !=3.0.*, !=3.1.*, !=3.2.*, <4',
+    python_requires='>=2.6, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, <4',
     install_requires=INSTALL_REQUIRES
-
 )

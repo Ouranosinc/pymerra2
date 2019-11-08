@@ -1,6 +1,5 @@
-cftime~=1.0.0
-Cython~=0.28.3
-netCDF4~=1.4.0
-numpy~=1.14.5
-pypandoc~=1.4
+cftime
+netCDF4
+numpy
+pypandoc
 pytest

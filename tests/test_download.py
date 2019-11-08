@@ -8,7 +8,6 @@
 #
 
 # TODO: Figure out a reasonable way to test download capabilities?
-# TODO: Split tests that perform subsetting with those that perform downloading
 # TODO: Add an example MERRA2 dataset to perfrom conversions on?
 
 #
@@ -41,7 +40,3 @@
 #             assert len(daily_files) == 3
 #         finally:
 #             shutil.rmtree(download_dir)
-
-
-if __name__ == "__main__":
-    pass

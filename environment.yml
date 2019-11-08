@@ -1,6 +1,9 @@
 name: pymerra2
-+channels:
-+- defaults
-+dependencies:
-+- numpy
-+- netCDF4
+channels:
+ - defaults
+ - conda-forge
+dependencies:
+ - numpy
+ - netCDF4
+ - pandoc
+ - pytest
