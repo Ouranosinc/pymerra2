@@ -1,4 +1,5 @@
 cftime
+Cython
 netCDF4
 numpy
 pypandoc
