@@ -21,7 +21,6 @@ defi2 = netCDF4.default_fillvals["i2"]
 defi4 = netCDF4.default_fillvals["i4"]
 deff4 = netCDF4.default_fillvals["f4"]
 
-# Aliases for different sizes
 KiB = 2 ** 10
 MiB = 2 ** 20
 GiB = 2 ** 30
@@ -34,13 +33,12 @@ class NetCDFError(Exception):
 # TODO: Integrate more opportunities for tests and simplify function calls
 # TODO: Create a class for data requests that can be passed to functions rather than script calls.
 # TODO: Refactor keywords and variables to remove ambiguity/confusion
-# TODO: Split functions between downloads and subsets
 # TODO: Integrate data downloads methods for similar data access types (Not just MERRA/MERRA2)
 # TODO: Write docstrings for ALL methods and classes from now on
 
 
 def _time_vectors_int(
-    time_vectors, force=False, raise_exception=False, allow_masked=True, dtype="int32"
+        time_vectors, force=False, raise_exception=False, allow_masked=True, dtype="int32"
 ):
     # tries to make the time vectors array an integer array if possible.
     if allow_masked:
@@ -57,19 +55,18 @@ def _time_vectors_int(
 
 
 def _datetimes_to_time_vectors(
-    datetimes: Union[datetime.datetime, List[datetime.datetime]]
+        datetimes: Union[datetime.datetime, List[datetime.datetime]]
 ):
     """Convert list of datetimes to Nx6 matrix.
 
     Parameters
     ----------
-    datetimes : Union[datetime.datetime, List[datetime.datetime]]
+    datetimes:  Union[datetime.datetime, List[datetime.datetime]]
 
     Returns
     -------
-    out : numpy.array
+    out: numpy.array
         Nx6 matrix of time vectors
-
     """
 
     # Does not support microsecond (datetime shape of length 7)
@@ -87,10 +84,10 @@ def _datetimes_to_time_vectors(
 
 
 def fixed_netcdf(
-    path_data: Union[str, Path],
-    output_file: Union[str, Path],
-    var_name: str,
-    merra2_var_dict: Optional[dict] = None,
+        path_data: Union[str, Path],
+        output_file: Union[str, Path],
+        var_name: str,
+        merra2_var_dict: Optional[dict] = None,
 ):
     """MERRA2 invariant NetCDF.
 
@@ -206,16 +203,16 @@ def fixed_netcdf(
 
 
 def subdaily_download(
-    merra2_server: str,
-    dataset_esdt: str,
-    merra2_collection: str,
-    initial_year: int,
-    final_year: int,
-    initial_month: int = 1,
-    final_month: int = 12,
-    initial_day: int = 1,
-    final_day: Optional[int] = None,
-    output_directory: Union[str, Path] = None,
+        merra2_server: str,
+        dataset_esdt: str,
+        merra2_collection: str,
+        initial_year: int,
+        final_year: int,
+        initial_month: int = 1,
+        final_month: int = 12,
+        initial_day: int = 1,
+        final_day: Optional[int] = None,
+        output_directory: Union[str, Path] = None,
 ):
     """MERRA2 subdaily download.
 
@@ -242,6 +239,9 @@ def subdaily_download(
     else:
         add_output_dir = "--directory-prefix={0}".format(output_directory)
 
+    # merra_cmd = ("wget -c {0}--load-cookies ~/.urs_cookies "
+    #              "--save-cookies ~/.urs_cookies --keep-session-cookies {1}")
+    # merra_cmd = merra_cmd.format(add_output_dir, merra2_server)
     data_path = "MERRA2/{4}/{0}/{1}/" "MERRA2_{3}.{5}.{0}{1}{2}.nc4"
     for yyyy in range(initial_year, final_year + 1):
         if yyyy < 1992:
@@ -279,7 +279,6 @@ def subdaily_download(
                     dataset_esdt,
                     merra2_collection,
                 )
-
                 subprocess.call(
                     [
                         "wget",
@@ -296,13 +295,13 @@ def subdaily_download(
 
 
 def subdaily_netcdf(
-    path_data: Union[str, Path],
-    output_file: Union[str, Path],
-    var_name: str,
-    initial_year: int,
-    final_year: int,
-    merra2_var_dict: Optional[dict] = None,
-    verbose: bool = False,
+        path_data: Union[str, Path],
+        output_file: Union[str, Path],
+        var_name: str,
+        initial_year: int,
+        final_year: int,
+        merra2_var_dict: Optional[dict] = None,
+        verbose: bool = False,
 ):
     """MERRA2 subdaily NetCDF.
 
@@ -318,8 +317,8 @@ def subdaily_netcdf(
         esdt_dir, collection, merra_name, standard_name,
         see the Bosilovich paper for details.
     verbose : bool
-
     """
+
     if not isinstance(path_data, Path):
         path_data = Path(path_data)
 
@@ -432,12 +431,11 @@ def subdaily_netcdf(
     time.units = "hours since 1980-01-01 00:00:00"
     time.long_name = "time"
     time.standard_name = "time"
-    # 4.4.1. Calendar
     time.calendar = "gregorian"
 
     tbounds = None
     if merra2_var_dict["cell_methods"]:
-        # WARNING: This breaks time. Caveat emptor.
+        # TODO: This breaks time. Caveat emptor.
         # time.bounds = "time_bnds"
         tbounds = nc1.createVariable("time_bnds", "f4", ("time", "nv"))
 
@@ -537,44 +535,44 @@ def subdaily_netcdf(
             else:
                 nctime_1980 = np.round(netCDF4.date2num(ncdatetime, time.units))
             if "lev" in nc_reference.dimensions:
-                tmp_data[ttmp : ttmp + ncvar.shape[0], :, :, :] = ncvar[:, :, :, :]
+                tmp_data[ttmp: ttmp + ncvar.shape[0], :, :, :] = ncvar[:, :, :, :]
             else:
-                tmp_data[ttmp : ttmp + ncvar.shape[0], :, :] = ncvar[:, :]
-            tmp_time[ttmp : ttmp + ncvar.shape[0]] = nctime_1980[:]
+                tmp_data[ttmp: ttmp + ncvar.shape[0], :, :] = ncvar[:, :]
+            tmp_time[ttmp: ttmp + ncvar.shape[0]] = nctime_1980[:]
             ttmp += ncvar.shape[0]
             nc.close()
         if "lev" in nc_reference.dimensions:
-            var1[t : t + tmp_data.shape[0], :, :, :] = tmp_data[:, :, :, :]
+            var1[t: t + tmp_data.shape[0], :, :, :] = tmp_data[:, :, :, :]
         else:
-            var1[t : t + tmp_data.shape[0], :, :] = tmp_data[:, :, :]
-        time[t : t + tmp_data.shape[0]] = tmp_time[:]
+            var1[t: t + tmp_data.shape[0], :, :] = tmp_data[:, :, :]
+        time[t: t + tmp_data.shape[0]] = tmp_time[:]
         if merra2_var_dict["cell_methods"]:
             # TODO: There is something not working here. 29 Oct 2019.
             if tmp_time[1] - tmp_time[0] == 1.0:
-                tbounds[t : t + tmp_data.shape[0], 0] = tmp_time[:] - 0.5
-                tbounds[t : t + tmp_data.shape[0], 1] = tmp_time[:] + 0.5
+                tbounds[t: t + tmp_data.shape[0], 0] = tmp_time[:] - 0.5
+                tbounds[t: t + tmp_data.shape[0], 1] = tmp_time[:] + 0.5
             elif tmp_time[1] - tmp_time[0] == 3.0:
-                tbounds[t : t + tmp_data.shape[0], 0] = tmp_time[:] - 1.5
-                tbounds[t : t + tmp_data.shape[0], 1] = tmp_time[:] + 1.5
+                tbounds[t: t + tmp_data.shape[0], 0] = tmp_time[:] - 1.5
+                tbounds[t: t + tmp_data.shape[0], 1] = tmp_time[:] + 1.5
         t += tmp_data.shape[0]
 
     nc1.close()
 
 
 def subdaily_download_and_convert(
-    merra2_server: str,
-    var_names: List[str],
-    initial_year: int,
-    final_year: int,
-    initial_month: int = 1,
-    final_month: int = 12,
-    initial_day: int = 1,
-    final_day: Optional[int] = None,
-    merra2_var_dicts: Optional[List[dict]] = None,
-    output_dir: Union[str, Path] = None,
-    delete_temp_dir: bool = False,
-    verbose: bool = False,
-    time_frequency="1hr",
+        merra2_server: str,
+        var_names: List[str],
+        initial_year: int,
+        final_year: int,
+        initial_month: int = 1,
+        final_month: int = 12,
+        initial_day: int = 1,
+        final_day: Optional[int] = None,
+        merra2_var_dicts: Optional[List[dict]] = None,
+        output_dir: Union[str, Path] = None,
+        delete_temp_dir: bool = False,
+        verbose: bool = False,
+        time_frequency="1hr",
 ):
     """MERRA2 subdaily download and conversion.
 
@@ -602,7 +600,6 @@ def subdaily_download_and_convert(
     delete_temp_dir : bool
     verbose : bool
     time_frequency : str
-
     """
     if isinstance(output_dir, Path):
         output_dir = Path(output_dir)
@@ -677,13 +674,13 @@ def subdaily_download_and_convert(
 
 
 def daily_netcdf(
-    path_data: Union[str, Path],
-    output_file: Union[str, Path],
-    var_name: str,
-    initial_year: int,
-    final_year: int,
-    merra2_var_dict: Optional[dict] = None,
-    verbose: bool = False,
+        path_data: Union[str, Path],
+        output_file: Union[str, Path],
+        var_name: str,
+        initial_year: int,
+        final_year: int,
+        merra2_var_dict: Optional[dict] = None,
+        verbose: bool = False,
 ):
     """MERRA2 daily NetCDF.
 
@@ -793,7 +790,6 @@ def daily_netcdf(
     if merra2_var_dict["cell_methods"]:
         nc1.createDimension("nv", 2)
 
-    # TODO: Remove these unused comments from source code to somewhere else?
     # Create netCDF variables
     # Compression parameters include:
     # zlib=True,complevel=9,least_significant_digit=1
@@ -816,7 +812,6 @@ def daily_netcdf(
     time.units = "hours since 1980-01-01 00:00:00"
     time.long_name = "time"
     time.standard_name = "time"
-    # 4.4.1. Calendar
     time.calendar = "gregorian"
 
     tbounds = None
@@ -824,7 +819,6 @@ def daily_netcdf(
         time.bounds = "time_bnds"
         tbounds = nc1.createVariable("time_bnds", "i4", ("time", "nv"))
 
-    # TODO: Remove these unused comments from source code to somewhere else?
     # 4.3. Vertical (Height or Depth) Coordinate
     # level = nc1.createVariable('level','f4',('level',),zlib=True)
     # level.axis = 'Z'
@@ -885,33 +879,33 @@ def daily_netcdf(
             nctime = nc.variables["time"]
             ncdatetime = netCDF4.num2date(nctime[:], nctime.units)
             nctime_1980 = np.round(netCDF4.date2num(ncdatetime, time.units))
-            tmp_data[ttmp : ttmp + ncvar.shape[0], :, :] = ncvar[:, :, :]
-            tmp_time[ttmp : ttmp + ncvar.shape[0]] = nctime_1980[:]
+            tmp_data[ttmp: ttmp + ncvar.shape[0], :, :] = ncvar[:, :, :]
+            tmp_time[ttmp: ttmp + ncvar.shape[0]] = nctime_1980[:]
             ttmp += ncvar.shape[0]
             nc.close()
-        var1[t : t + tmp_data.shape[0], :, :] = tmp_data[:, :, :]
-        time[t : t + tmp_data.shape[0]] = tmp_time[:]
+        var1[t: t + tmp_data.shape[0], :, :] = tmp_data[:, :, :]
+        time[t: t + tmp_data.shape[0]] = tmp_time[:]
         if merra2_var_dict["cell_methods"]:
-            tbounds[t : t + tmp_data.shape[0], 0] = tmp_time[:] - 12
-            tbounds[t : t + tmp_data.shape[0], 1] = tmp_time[:] + 12
+            tbounds[t: t + tmp_data.shape[0], 0] = tmp_time[:] - 12
+            tbounds[t: t + tmp_data.shape[0], 1] = tmp_time[:] + 12
         t += tmp_data.shape[0]
 
     nc1.close()
 
 
 def daily_download_and_convert(
-    merra2_server: str,
-    var_names: List[str],
-    initial_year: int,
-    final_year: int,
-    initial_month: int = 1,
-    final_month: int = 12,
-    initial_day: int = 1,
-    final_day: Optional[int] = None,
-    merra2_var_dicts: Optional[List[dict]] = None,
-    output_dir: Union[str, Path] = None,
-    delete_temp_dir: bool = True,
-    verbose: bool = True,
+        merra2_server: str,
+        var_names: List[str],
+        initial_year: int,
+        final_year: int,
+        initial_month: int = 1,
+        final_month: int = 12,
+        initial_day: int = 1,
+        final_day: Optional[int] = None,
+        merra2_var_dicts: Optional[List[dict]] = None,
+        output_dir: Union[str, Path] = None,
+        delete_temp_dir: bool = True,
+        verbose: bool = True,
 ):
     """MERRA2 daily download and conversion.
 

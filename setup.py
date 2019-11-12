@@ -6,19 +6,19 @@ from setuptools import setup, find_packages
 here = os.path.abspath(os.path.dirname(__file__))
 about = dict(
     __version__=0.3,
-    __title__="pymerra2",
-    __description__="A tool for downloading and repackaging NASA MERRA-2 Data",
-    __url__="https://github.com/Ouranosinc/pymerra2",
-    __author__="Trevor James Smith",
-    __author_email__="smith.trevorj@ouranos.ca",
-    __license__="Apache Software License 2.0",
-    __copyright__="Copyright 2018 Ouranos Inc.",
+    __title__='pymerra2',
+    __description__='A tool for downloading and repackaging NASA MERRA-2 Data',
+    __url__='https://github.com/Ouranosinc/pymerra2',
+    __author__='Trevor James Smith',
+    __author_email__='smith.trevorj@ouranos.ca',
+    __license__='Apache Software License 2.0',
+    __copyright__='Copyright 2018 Ouranos Inc.'
 )
 
 with codecs.open("README.md", "r") as fh:
     long_description = fh.read()
 
-INSTALL_REQUIRES = [line.strip() for line in open("requirements.txt")]
+INSTALL_REQUIRES = [line.strip() for line in open('requirements.txt')]
 
 KEYWORDS = "nasa merra2 netcdf climate forecast reanalysis"
 
@@ -47,8 +47,8 @@ setup(
         "Topic ::Utilities",
     ],
     keywords=KEYWORDS,
-    packages=find_packages(exclude=["tests", "templates"]),
+    packages=find_packages(exclude=['tests', 'templates']),
     include_package_data=None,
-    python_requires=">=3.5, <4",
-    install_requires=INSTALL_REQUIRES,
+    python_requires='>=2.6, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, <4',
+    install_requires=INSTALL_REQUIRES
 )
