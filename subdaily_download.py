@@ -46,10 +46,60 @@ for yyyy in range(2017, 2019):
             continue
 
 
-# download.subdaily_netcdf(
-#     path_data=download_dir,
-#     output_file="toto1.nc",
-#     var_name="pr",
-#     final_year=2017,
-#     merra2_var_dict=None,
-#     verbose=False)
+def file_namer(
+    var_name,
+    initial_year,
+    final_year,
+    initial_month,
+    final_month,
+    initial_day: int = None,
+    final_day: int = None,
+):
+    # Name the output file
+    if (initial_year == final_year) and (initial_month == final_month):
+        if initial_day == final_day:
+            file_name_str = "{0}_{1}_merra2_reanalysis_{2}{3}{4}.nc"
+            out_file_name = file_name_str.format(
+                var_name,
+                time_frequency,
+                str(initial_year),
+                str(initial_month).zfill(2),
+                str(initial_day).zfill(2),
+            )
+        else:
+            file_name_str = "{0}_{1}_merra2_reanalysis_{2}{3}.nc"
+            out_file_name = file_name_str.format(
+                var_name,
+                time_frequency,
+                str(initial_year),
+                str(initial_month).zfill(2),
+            )
+    else:
+        file_name_str = "{0}_{1}_merra2_reanalysis_{2}{3}-{4}{5}.nc"
+        out_file_name = file_name_str.format(
+            var_name,
+            time_frequency,
+            str(initial_year),
+            str(initial_month).zfill(2),
+            str(final_year),
+            str(final_month).zfill(2),
+        )
+
+
+for yyyy in range(2017, 2019):
+    for mm in range(1, 13):
+        try:
+
+            download.subdaily_netcdf(
+                path_data=download_dir,
+                output_file="toto1.nc",
+                var_name="pr",
+                initial_year=yyyy,
+                final_year=yyyy,
+                merra2_var_dict=None,
+                verbose=False,
+            )
+        except Exception as e:
+            msg = "{}: File not found".format(e)
+            logging.error(msg)
+            continue
