@@ -4,6 +4,7 @@ import subprocess
 import sys
 import glob
 import tempfile
+import logging
 from calendar import monthrange
 from pathlib import Path
 from typing import List
@@ -88,7 +89,7 @@ def _datetimes_to_time_vectors(
 
 
 def get_nc_attr(nc, name, default=None):
-    """Non-error raising netCDF attribut getter"""
+    """Non-error raising netCDF attribute getter"""
     try:
         return nc.getncattr(name)
     except AttributeError:
@@ -288,20 +289,30 @@ def subdaily_download(
                     dataset_esdt,
                     merra2_collection,
                 )
-
-                subprocess.call(
-                    [
-                        "wget",
-                        "-c",
-                        add_output_dir,
-                        "--load-cookies",
-                        str(Path("~/.urs_cookies").expanduser()),
-                        "--save-cookies",
-                        str(Path("~/.urs_cookies").expanduser()),
-                        "--keep-session-cookies",
-                        merra2_server + cdp,
-                    ]
-                )
+                tries = 0
+                while True:
+                    try:
+                        subprocess.check_call(
+                            [
+                                "wget",
+                                "-c",
+                                add_output_dir,
+                                "--load-cookies",
+                                str(Path("~/.urs_cookies").expanduser()),
+                                "--save-cookies",
+                                str(Path("~/.urs_cookies").expanduser()),
+                                "--keep-session-cookies",
+                                merra2_server + cdp,
+                            ]
+                        )
+                        logging.info("File `{}` successfully downloaded.".format(cdp))
+                        break
+                    except subprocess.CalledProcessError:
+                        tries += 1
+                        if tries > 3:
+                            logging.exception("Failed to download file: {}".format(cdp))
+                            raise
+                        continue
 
 
 def subdaily_netcdf(
